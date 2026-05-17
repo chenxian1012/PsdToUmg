@@ -3,6 +3,9 @@
   "EngineAssociation": "5.7",
   "Category": "",
   "Description": "",
+  "Modules": [
+    { "Name": "HostProject", "Type": "Runtime", "LoadingPhase": "Default" }
+  ],
   "Plugins": [
     { "Name": "PSD2UMG", "Enabled": true }
   ]

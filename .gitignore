@@ -1,0 +1,11 @@
+Binaries/
+Intermediate/
+DerivedDataCache/
+Saved/
+*.VC.db
+.vs/
+HostProject/Binaries/
+HostProject/Intermediate/
+HostProject/DerivedDataCache/
+HostProject/Saved/
+Source.legacy.bak/

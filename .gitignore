@@ -8,4 +8,6 @@ HostProject/Binaries/
 HostProject/Intermediate/
 HostProject/DerivedDataCache/
 HostProject/Saved/
+# Plugin junction loops back to repo root; do not let git recurse into it
+HostProject/Plugins/PSD2UMG/
 Source.legacy.bak/

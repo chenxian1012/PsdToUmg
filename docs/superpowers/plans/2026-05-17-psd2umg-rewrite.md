@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the legacy PSD2UMG plugin with a UE 5.7 rewrite that uses vendored PhotoshopAPI v0.6.1, a three-layer Importer→Schema→Builder pipeline, and produces production-grade UMG (9-slice, CommonUI, Smart Object → sub-WBP, rich text, incremental Reimport, FMessageLog errors) from `.psd` files driven by a layer-name + sidecar-JSON schema.
+**Goal:** Replace the legacy PSD2UMG plugin with a UE 5.7 rewrite that uses vendored MolecularMatters/psd_sdk, a three-layer Importer→Schema→Builder pipeline, and produces production-grade UMG (9-slice, CommonUI, linked sub-PSD → sub-WBP, rich text, incremental Reimport, FMessageLog errors) from `.psd` files driven by a layer-name + sidecar-JSON schema.
 
-**Architecture:** Three-layer pipeline. `Importer/PsdReader` adapts PhotoshopAPI into a pure-C++ `FPsdDocument`. `Schema/PsdSchemaResolver` merges naming conventions and `.psd.json` into a UE-agnostic `FWidgetSpec` tree. `Builder/UmgBuilder` walks the spec tree to create/update `UWidgetBlueprint` + textures + style assets. Schema is the only layer that runs without an editor; the other layers are validated by Automation Spec tests.
+**Architecture:** Three-layer pipeline. `Importer/PsdReader` adapts psd_sdk into a pure-C++ `FPsdDocument`. `Schema/PsdSchemaResolver` merges naming conventions and `.psd.json` into a UE-agnostic `FWidgetSpec` tree. `Builder/UmgBuilder` walks the spec tree to create/update `UWidgetBlueprint` + textures + style assets. Schema is the only layer that runs without an editor; the other layers are validated by Automation Spec tests.
 
-**Tech Stack:** UE 5.7 Editor module, C++20, Win64-only, vendored EmilDohne/PhotoshopAPI v0.6.1, UMG/UMGEditor, CommonUI (optional), AssetDefinition (5.4+), DeveloperSettings, MessageLog, Json/JsonUtilities, Slate, Automation Spec.
+**Tech Stack:** UE 5.7 Editor module, C++20, Win64-only, vendored MolecularMatters/psd_sdk, UMG/UMGEditor, CommonUI (optional), AssetDefinition (5.4+), DeveloperSettings, MessageLog, Json/JsonUtilities, Slate, Automation Spec.
 
 **Source of truth:** `docs/superpowers/specs/2026-05-17-psd2umg-rewrite-design.md`. Read it before starting.
 
@@ -17,9 +17,10 @@
 ```
 PSD2UMG.uplugin                                  rewrite
 Source/PSD2UMG/PSD2UMG.Build.cs                  rewrite
-Source/PSD2UMG/ThirdParty/PhotoshopAPI/
-  PhotoshopAPI.Build.cs                          new (vendored module wrapper)
-  Includes/ Source/ ...                          vendored v0.6.1 snapshot
+Source/psd_sdk/
+  psd_sdk.Build.cs                               new (vendored sibling UE module)
+  Includes/ Source/ Private/PsdSdkModule.cpp     vendored MolecularMatters/psd_sdk snapshot
+  LICENSE.psd_sdk
 Source/PSD2UMG/Private/
   PSD2UMG.cpp                                    rewrite (entry, MessageLog reg)
   Importer/
@@ -63,8 +64,10 @@ Source/PSD2UMG/Tests/                            new module dir (built only when
   Sample/Buttons.expected.json
   Sample/NineSlice.psd
   Sample/NineSlice.expected.json
-  Sample/SmartObject.psd
-  Sample/SmartObject.expected.json
+  Sample/LinkedPsd.psd
+  Sample/LinkedPsd.expected.json
+  Sample/Avatar.psd                              # the file LinkedPsd.psd's #linkedpsd(Avatar.psd) points to
+  Sample/Avatar.expected.json
   Spec/PsdReader.spec.cpp
   Spec/PsdSchema.spec.cpp
   Spec/UmgBuilder.spec.cpp
@@ -77,9 +80,9 @@ docs/
 ```
 
 **Boundaries:**
-- `Schema/` depends only on `Core`. No `UMG`, no `Engine`, no PhotoshopAPI.
-- `Builder/` depends on `UMG, UMGEditor, AssetTools, AssetRegistry, KismetCompiler, BlueprintGraph, CommonUI`. Does not know about PhotoshopAPI.
-- `Importer/` is the only file group that touches both PhotoshopAPI and UE asset system.
+- `Schema/` depends only on `Core`. No `UMG`, no `Engine`, no psd_sdk.
+- `Builder/` depends on `UMG, UMGEditor, AssetTools, AssetRegistry, KismetCompiler, BlueprintGraph, CommonUI`. Does not know about psd_sdk.
+- `Importer/` is the only file group that touches both psd_sdk and UE asset system.
 - `Asset/`, `Settings/` depend on `Core, CoreUObject, Engine, DeveloperSettings`.
 
 ---
@@ -453,149 +456,117 @@ git commit -m "feat(psd2umg): reset to empty editor module skeleton for UE 5.7"
 
 ---
 
-## Task 2: Vendor PhotoshopAPI v0.6.1 as a UE Module
+## Task 2: Vendor MolecularMatters/psd_sdk as a Sibling UE Module
 
-**Goal:** Drop PhotoshopAPI source into ThirdParty/ and expose it as a sibling UE Module so the main module can `#include <psapi/...>`.
+**Goal:** Drop the psd_sdk source tree into the plugin as a sibling UE module called `psd_sdk` so the main module can `#include "Psd/Psd.h"` and read .psd files. The library is pure C++, zero third-party deps (~7200 LOC), and supports 8/16/32 bit PSDs.
 
 **Files:**
-- Create: `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/PhotoshopAPI.Build.cs`
-- Create: `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/Includes/...` (vendored)
-- Create: `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/Source/...` (vendored)
-- Modify: `D:/Ai/Project/PSD2UMG_5.7/PSD2UMG.uplugin` (register additional module)
-- Modify: `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/PSD2UMG.Build.cs` (depend on the module)
+- Create: `D:/Ai/Project/PSD2UMG_5.7/Source/psd_sdk/psd_sdk.Build.cs`
+- Create: `D:/Ai/Project/PSD2UMG_5.7/Source/psd_sdk/Includes/...` (vendored upstream headers from `src/Psd/`)
+- Create: `D:/Ai/Project/PSD2UMG_5.7/Source/psd_sdk/Source/...` (vendored upstream sources from `src/Psd/`)
+- Create: `D:/Ai/Project/PSD2UMG_5.7/Source/psd_sdk/Private/PsdSdkModule.cpp`
+- Create: `D:/Ai/Project/PSD2UMG_5.7/Source/psd_sdk/LICENSE.psd_sdk`
+- Modify: `D:/Ai/Project/PSD2UMG_5.7/PSD2UMG.uplugin` (add psd_sdk module)
+- Modify: `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/PSD2UMG.Build.cs` (depend on psd_sdk)
 
-- [ ] **Step 1: Clone PhotoshopAPI v0.6.1 into a scratch dir**
+The UE module name `psd_sdk` matches the upstream repo name. We literally name the `Build.cs` file `psd_sdk.Build.cs` (snake_case is legal), name the C# class `psd_sdk`, and the `IMPLEMENT_MODULE` second arg is `psd_sdk`. C# class names allow underscores; this is the cleanest path.
 
-```bash
-cd /tmp || cd "$TEMP"
-git clone --depth 1 --branch v0.6.1 https://github.com/EmilDohne/PhotoshopAPI.git photoshopapi-src
-```
-Expected: directory at `/tmp/photoshopapi-src` (or `%TEMP%/photoshopapi-src`). If v0.6.1 is gone, use `git tag --list` to pick the latest 0.6.x.
-
-- [ ] **Step 2: Strip non-PSD-read dependencies**
-
-The library can depend on `OpenImageIO`, `Blosc2`, `libdeflate`, `simdutf`, `fmt`. We need only the PSD/PSB **read** path plus its built-in mini-reader for embedded smart objects. Inspect:
-```bash
-ls /tmp/photoshopapi-src/PhotoshopAPI/src
-ls /tmp/photoshopapi-src/thirdparty
-```
-Document which subdirs are required for read. The minimum set we keep:
-- `PhotoshopAPI/src/Core/`
-- `PhotoshopAPI/src/PhotoshopFile/`
-- `PhotoshopAPI/src/LayeredFile/`
-- `PhotoshopAPI/src/Compression/`
-- `PhotoshopAPI/src/Util/`
-- `PhotoshopAPI/include/`
-- `thirdparty/libdeflate/` (required for ZIP layer decompression)
-- `thirdparty/simdutf/` (UTF-16 layer names)
-- `thirdparty/blosc2/` — **skip** (only needed for write-path SuperBlosc)
-- `thirdparty/OpenImageIO/` — **skip** (we feed embedded SmartObject PSDs through PhotoshopAPI's own reader)
-
-If the dependency graph forces OpenImageIO/Blosc2 to compile, gate them out via `#define PSAPI_DISABLE_WRITE` (check the CMake options in `PhotoshopAPI/CMakeLists.txt`; add equivalent `PrivateDefinitions` in our `Build.cs`).
-
-- [ ] **Step 3: Copy needed sources**
+- [ ] **Step 1: Clone psd_sdk to a scratch dir**
 
 ```bash
-mkdir -p "D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/Includes"
-mkdir -p "D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/Source"
-cp -r /tmp/photoshopapi-src/PhotoshopAPI/include/* "D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/Includes/"
-cp -r /tmp/photoshopapi-src/PhotoshopAPI/src/Core "D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/Source/"
-cp -r /tmp/photoshopapi-src/PhotoshopAPI/src/PhotoshopFile "D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/Source/"
-cp -r /tmp/photoshopapi-src/PhotoshopAPI/src/LayeredFile "D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/Source/"
-cp -r /tmp/photoshopapi-src/PhotoshopAPI/src/Compression "D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/Source/"
-cp -r /tmp/photoshopapi-src/PhotoshopAPI/src/Util "D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/Source/"
-cp /tmp/photoshopapi-src/LICENSE "D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/LICENSE.PhotoshopAPI"
+cd "$TEMP" || cd /tmp || cd /c/Windows/Temp
+rm -rf psd_sdk-src
+git clone https://github.com/MolecularMatters/psd_sdk.git psd_sdk-src
+cd psd_sdk-src
+git log --oneline -1
 ```
 
-Copy `libdeflate` and `simdutf` similarly into `ThirdParty/PhotoshopAPI/Source/_deps/`.
+Use the default branch (HEAD). Document the exact commit SHA in the commit message and `LICENSE.psd_sdk` header.
+
+- [ ] **Step 2: Inspect the upstream tree**
+
+```bash
+ls src/Psd/         # the library source — these are the files we vendor
+ls src/             # samples and the Pch live here too; we DON'T vendor those
+find src/Psd -name '*.cpp' | wc -l
+find src/Psd -name '*.h'   | wc -l
+```
+
+Confirm we have ~30-40 .cpp/.h files under `src/Psd/`. If the layout differs significantly, STOP and report NEEDS_CONTEXT with the actual layout.
+
+- [ ] **Step 3: Copy needed sources into the plugin**
+
+```bash
+PSDDIR=/d/Ai/Project/PSD2UMG_5.7/Source/psd_sdk
+mkdir -p "$PSDDIR/Includes/Psd" "$PSDDIR/Source/Psd" "$PSDDIR/Private"
+
+# Copy all of src/Psd into Includes/Psd and Source/Psd. We split headers from sources
+# by extension so UE's PublicIncludePaths exposes only the .h files.
+cp src/Psd/*.h   "$PSDDIR/Includes/Psd/"
+cp src/Psd/*.cpp "$PSDDIR/Source/Psd/"
+
+# psd_sdk uses a PCH file (PsdPch.h / PsdPch.cpp) but UE prefers per-module PCH
+# control. Keep PsdPch.h as a regular header and let UE build with NoPCHs (we'll
+# set PCHUsage = NoPCHs in Build.cs).
+
+# License
+cp LICENSE.txt "$PSDDIR/LICENSE.psd_sdk" 2>/dev/null \
+  || cp LICENSE "$PSDDIR/LICENSE.psd_sdk" 2>/dev/null \
+  || cp LICENSE.md "$PSDDIR/LICENSE.psd_sdk" 2>/dev/null
+```
 
 - [ ] **Step 4: Write the module Build.cs**
 
-Write to `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/PhotoshopAPI.Build.cs`:
+Write to `D:/Ai/Project/PSD2UMG_5.7/Source/psd_sdk/psd_sdk.Build.cs`:
 ```csharp
 using UnrealBuildTool;
 using System.IO;
 
-public class PhotoshopAPI : ModuleRules
+public class psd_sdk : ModuleRules
 {
-    public PhotoshopAPI(ReadOnlyTargetRules Target) : base(Target)
+    public psd_sdk(ReadOnlyTargetRules Target) : base(Target)
     {
         Type = ModuleType.CPlusPlus;
         PCHUsage = PCHUsageMode.NoPCHs;
-        CppStandard = CppStandardVersion.Cpp20;
         bUseUnity = false;
-        bEnableExceptions = true;
+        bEnableExceptions = false;
         bEnableUndefinedIdentifierWarnings = false;
         ShadowVariableWarningLevel = WarningLevel.Off;
+        bDisableStaticAnalysis = true;
+
+        // psd_sdk's authors explicitly state it does not use STL/RTTI/exceptions.
+        // It does, however, use raw pointers and varargs in some places that trip
+        // UE's stricter warnings. Loosen them for this module only.
 
         PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "Includes"));
         PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Source"));
-        PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Source", "_deps", "libdeflate"));
-        PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Source", "_deps", "simdutf"));
+        PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
 
-        PublicDefinitions.Add("PSAPI_DISABLE_WRITE=1");
         PublicDefinitions.Add("NOMINMAX=1");
+        // The library uses Windows-only async IO if PSD_USE_MSVC is defined.
+        // We let it auto-detect via _WIN32 and Win64-only platform allowlist.
 
         PublicDependencyModuleNames.Add("Core");
     }
 }
 ```
 
-- [ ] **Step 5: Register the module in `.uplugin`**
+- [ ] **Step 5: Add the IMPLEMENT_MODULE stub**
 
-Modify `D:/Ai/Project/PSD2UMG_5.7/PSD2UMG.uplugin`, replace `Modules` array:
-```json
-"Modules": [
-    {
-        "Name": "PhotoshopAPI",
-        "Type": "Editor",
-        "LoadingPhase": "Default",
-        "PlatformAllowList": [ "Win64" ]
-    },
-    {
-        "Name": "PSD2UMG",
-        "Type": "Editor",
-        "LoadingPhase": "Default",
-        "PlatformAllowList": [ "Win64" ]
-    }
-]
-```
-
-Wait — PhotoshopAPI is a pure C++ library, not a UE module. The cleanest pattern is to expose it as a `PrivateDependencyModuleNames` entry from the main module's `Build.cs`, where the module declaration itself is just a `Build.cs` + headers + sources tree (no `IMPLEMENT_MODULE`). UE supports this when there's no `.uproject` Modules entry — the module file is found by directory walk under `Source/`. We do **not** add it to `.uplugin`.
-
-Revert the `.uplugin` change above. Instead, modify `PSD2UMG.Build.cs` to add the dependency:
-
-In `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/PSD2UMG.Build.cs`, append to the constructor:
-```csharp
-PrivateDependencyModuleNames.Add("PhotoshopAPI");
-```
-
-- [ ] **Step 6: Move ThirdParty to its own Source root**
-
-UE auto-discovers modules by walking `Source/` (and plugin `Source/` subdirs) looking for `*.Build.cs`. The current vendored tree is at `Source/PSD2UMG/ThirdParty/PhotoshopAPI/PhotoshopAPI.Build.cs` — UE will NOT find it nested inside another module. Move it:
-
-```bash
-mkdir -p "D:/Ai/Project/PSD2UMG_5.7/Source/PhotoshopAPI"
-mv "D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI/"* "D:/Ai/Project/PSD2UMG_5.7/Source/PhotoshopAPI/"
-rmdir "D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty/PhotoshopAPI"
-rmdir "D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/ThirdParty"
-```
-
-The `Build.cs` is now at `Source/PhotoshopAPI/PhotoshopAPI.Build.cs`. UE finds it. But it is **not declared in `.uplugin`**, which means UE will compile its `Build.cs` as part of the plugin's build graph only when something depends on it. That's correct — `PSD2UMG.Build.cs` already lists `PhotoshopAPI` in `PrivateDependencyModuleNames`.
-
-For it to compile, however, UE needs to know the module exists from the `.uplugin`. **Add it back** to the modules array (as a CPlusPlus library module; UE allows a module to exist without an `IMPLEMENT_MODULE` if its `Type=CPlusPlus`-style usage emits no module class — but a UE Module always emits a module object, even if empty).
-
-The simplest path: add an empty `PhotoshopAPI.cpp` that calls `IMPLEMENT_MODULE`. Write to `D:/Ai/Project/PSD2UMG_5.7/Source/PhotoshopAPI/Private/PhotoshopAPIModule.cpp`:
+Write to `D:/Ai/Project/PSD2UMG_5.7/Source/psd_sdk/Private/PsdSdkModule.cpp`:
 ```cpp
 #include "Modules/ModuleManager.h"
-IMPLEMENT_MODULE(FDefaultModuleImpl, PhotoshopAPI);
+
+IMPLEMENT_MODULE(FDefaultModuleImpl, psd_sdk);
 ```
 
-Modify the `.uplugin` to declare it:
+- [ ] **Step 6: Register the module in `.uplugin`**
+
+Read `D:/Ai/Project/PSD2UMG_5.7/PSD2UMG.uplugin` and replace the `Modules` array with:
 ```json
 "Modules": [
     {
-        "Name": "PhotoshopAPI",
+        "Name": "psd_sdk",
         "Type": "Editor",
         "LoadingPhase": "Default",
         "PlatformAllowList": [ "Win64" ]
@@ -606,60 +577,94 @@ Modify the `.uplugin` to declare it:
         "LoadingPhase": "Default",
         "PlatformAllowList": [ "Win64" ]
     }
-]
+],
 ```
 
-Update `Build.cs` `PrivateIncludePaths` in step 4 to also expose `Private/`:
-```csharp
-PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
+- [ ] **Step 7: Add psd_sdk to PSD2UMG.Build.cs PrivateDependencyModuleNames**
+
+In `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/PSD2UMG.Build.cs`, add `"psd_sdk"` to the `PrivateDependencyModuleNames.AddRange(...)` array. Preserve all other entries.
+
+- [ ] **Step 8: First build attempt**
+
+```bash
+cd "D:/Ai/Project/PSD2UMG_5.7"
+'/d/ue/UE_5.7/Engine/Build/BatchFiles/Build.bat' HostProjectEditor Win64 Development -Project="D:\Ai\Project\PSD2UMG_5.7\HostProject\HostProject.uproject" -WaitMutex
 ```
 
-- [ ] **Step 7: Build**
+Use `timeout: 600000` (10 minutes).
 
-```powershell
-& "D:\ue\UE_5.7\Engine\Build\BatchFiles\Build.bat" `
-  HostProjectEditor Win64 Development `
-  -Project="D:\Ai\Project\PSD2UMG_5.7\HostProject\HostProject.uproject" `
-  -WaitMutex
-```
-Expected: BUILD SUCCESSFUL. Many warnings tolerable, no errors.
+Expected: BUILD SUCCESSFUL. If it fails, the most common issues for psd_sdk in UE are:
+- **`Foundation.h` not found** — that's an Apple-only header; psd_sdk has macOS code paths. Delete the .cpp file that includes it (it should be `PsdMallocAllocator.cpp` macOS sections, or an aio variant — find the offending file with `grep -l Foundation src/Psd/`) and add to REMOVED.md.
+- **`<aio.h>` not found** — Linux-only header. Similar fix.
+- **Macro `min`/`max` redefined** — should be solved by `NOMINMAX=1`. If still hitting, add `bUseRTTI = false` (no effect) or `#define NOMINMAX` at the top of the offending .cpp via a wrapper.
+- **`std::vector` / `std::string` errors** — psd_sdk claims "no STL" but may have minor uses. They should compile fine; if not, look closer.
 
-If compile fails because PhotoshopAPI internally pulls Blosc2/OpenImageIO headers even after `PSAPI_DISABLE_WRITE`, gate the failing translation units out by deleting their `.cpp` files from `Source/PhotoshopAPI/Source/` and rerunning. Document each removed file in `Source/PhotoshopAPI/REMOVED.md`:
+Iterate up to 5 times. Document each file removed in `REMOVED.md` (initialize per Step 10).
 
-Write to `D:/Ai/Project/PSD2UMG_5.7/Source/PhotoshopAPI/REMOVED.md`:
-```
-# Files removed from upstream PhotoshopAPI v0.6.1
+- [ ] **Step 9: Smoke-include the umbrella header in PSD2UMG.cpp**
 
-Removed translation units below because they only serve the write path or
-optional OIIO image-io path, which we do not exercise.
-
-- ... (list as you discover)
-```
-
-- [ ] **Step 8: Smoke-include test**
-
-Add temporary include into `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/Private/PSD2UMG.cpp` at top:
+The upstream umbrella is `Psd/Psd.h` (verify with `ls Source/psd_sdk/Includes/Psd/Psd.h`). If it exists, add to `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/Private/PSD2UMG.cpp` (just below `#include "IPSD2UMG.h"`):
 ```cpp
-#include "PhotoshopAPI.h"
+#include "Psd/Psd.h"  // TEMP: smoke-test
 ```
 
-Rebuild. Expected: BUILD SUCCESSFUL. If header resolution fails, add the actual header file (find it via `find Source/PhotoshopAPI/Includes -name '*.h' | head`) and adjust.
+If `Psd/Psd.h` doesn't exist, look for the actual umbrella:
+```bash
+find "D:/Ai/Project/PSD2UMG_5.7/Source/psd_sdk/Includes" -name '*.h' -maxdepth 3 | grep -i 'PsdDocument\|psd_sdk\|Psd\.h' | head -10
+```
 
-Then remove the temporary include — it has served its purpose.
+Rebuild. Expect BUILD SUCCESSFUL.
 
-- [ ] **Step 9: Commit**
+After it builds, REMOVE the temporary include and rebuild once more to confirm clean.
+
+- [ ] **Step 10: Initialize REMOVED.md**
+
+Write to `D:/Ai/Project/PSD2UMG_5.7/Source/psd_sdk/REMOVED.md`:
+```
+# Files removed from upstream MolecularMatters/psd_sdk
+
+Snapshot from https://github.com/MolecularMatters/psd_sdk at commit <SHA>.
+
+We vendor the full `src/Psd/` directory and remove only platform-specific files
+that don't compile on Win64 (the only supported PSD2UMG platform).
+
+## Removed translation units
+(populate as needed during the iteration loop)
+
+## Notes
+- No third-party libraries are required; psd_sdk has its own miniz, no STL/RTTI/exceptions.
+- 8/16/32 bit PSDs supported. Smart Object pixel extraction is NOT supported
+  (only smart-object layers are detected as a layer type). PSD2UMG uses the
+  `#linkedpsd(...)` naming convention instead — see spec §4 and §5.
+- PSB (>2GB) is not supported. PsdReader detects this and reports an error.
+```
+
+- [ ] **Step 11: Commit**
 
 ```bash
 cd "D:/Ai/Project/PSD2UMG_5.7"
 git add -A
-git commit -m "feat(psd2umg): vendor PhotoshopAPI v0.6.1 as sibling module"
+git status
+git commit -m "feat(psd2umg): vendor MolecularMatters/psd_sdk as sibling module
+
+- Vendored from https://github.com/MolecularMatters/psd_sdk at commit <SHA>
+- Pure C++ ~7200 LOC, zero third-party deps
+- Supports 8/16/32 bit PSDs
+- Does NOT support Smart Object pixel extraction (we use #linkedpsd convention)
+- Does NOT support PSB (PsdReader detects and rejects)
+- Add psd_sdk sibling UE module under Source/psd_sdk
+- PSD2UMG module declares private dep on psd_sdk
+- HostProjectEditor target builds clean
+
+See Source/psd_sdk/REMOVED.md for the list of upstream files not vendored."
 ```
+
 
 ---
 
 ## Task 3: PsdDocument (Pure C++ Intermediate Representation)
 
-**Goal:** Define `FPsdDocument`/`FPsdLayer` with no PhotoshopAPI or UMG dependency. Unit-testable from a command-line target.
+**Goal:** Define `FPsdDocument`/`FPsdLayer` with no psd_sdk or UMG dependency. Unit-testable from a command-line target.
 
 **Files:**
 - Create: `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/Private/Schema/PsdDocument.h`
@@ -679,7 +684,7 @@ namespace PSD2UMG
         Group,
         Raster,
         Text,
-        SmartObject
+        LinkedPsd
     };
 
     enum class EBlendMode : uint8
@@ -704,12 +709,10 @@ namespace PSD2UMG
         bool     bItalic = false;
     };
 
-    struct FPsdSmartRef
+    struct FPsdLinkedRef
     {
-        FString  Name;
-        TArray<uint8> EmbeddedPsdBytes;
-        FString  SourceHash;  // sha1 of EmbeddedPsdBytes; used for cycle detection
-        FTransform2d Transform = FTransform2d();
+        FString  RelPath;       // Relative path from the parent PSD, e.g. "Avatar.psd"
+        FString  AbsPath;       // Resolved absolute path; empty if unresolved
     };
 
     struct FPsdLayer
@@ -721,14 +724,14 @@ namespace PSD2UMG
         ELayerKind    Kind = ELayerKind::Raster;
         bool          bVisible = true;
 
-        // Raster: RGBA8 row-major, length = (Bounds.Width * Bounds.Height * 4). Empty for Group/Text/SmartObject.
+        // Raster: RGBA8 row-major, length = (Bounds.Width * Bounds.Height * 4). Empty for Group/Text/LinkedPsd.
         TArray<uint8> Pixels;
 
         // Text only.
         FPsdTextRun   TextRun;
 
-        // SmartObject only.
-        FPsdSmartRef  SmartRef;
+        // LinkedPsd only.
+        FPsdLinkedRef LinkedRef;
 
         // Group only.
         TArray<FPsdLayer> Children;
@@ -794,7 +797,7 @@ public class PSD2UMGTests : ModuleRules
         {
             "UnrealEd", "UMGEditor", "Json", "JsonUtilities",
             "AssetTools", "AssetRegistry", "BlueprintGraph", "KismetCompiler",
-            "PhotoshopAPI"
+            "psd_sdk"
         });
 
         PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
@@ -898,7 +901,7 @@ void FPSD2UMGSmokeSpec::Define()
         It("contains all five sample PSDs and their expected.json files", [this]()
         {
             for (const TCHAR* Name : { TEXT("Simple"), TEXT("Nested"), TEXT("Buttons"),
-                                       TEXT("NineSlice"), TEXT("SmartObject") })
+                                       TEXT("NineSlice"), TEXT("LinkedPsd"), TEXT("Avatar") })
             {
                 const FString Psd = PSD2UMGTest::GetSamplePsdPath(Name);
                 const FString Json = FPaths::Combine(PSD2UMGTest::GetSamplesDir(),
@@ -941,12 +944,11 @@ Pipeline per sample:
   3. Write <Sample>.expected.json with the layer metadata the C++ tests assert on.
 
 Notes / limitations:
-  - ImageMagick exports flat layered PSDs; groups and smart objects are not
-    representable this way. `Nested.psd` and `SmartObject.psd` therefore use
-    layer-name conventions (folder names embedded in layer names) and a
-    secondary embedded PSD attached by a follow-up Python step that patches
-    the PSD's layer-info Additional Layer Information block to add a Smart
-    Object record. See add_smart_object() below.
+  - ImageMagick exports flat layered PSDs; real groups and smart objects are
+    not representable this way. `Nested.psd` therefore uses layer-name
+    conventions (folder names embedded in layer names). PSD2UMG itself does
+    NOT use Smart Objects — it uses the `#linkedpsd(...)` naming convention
+    to reference sibling .psd files, which Pillow+ImageMagick produces fine.
 """
 
 from __future__ import annotations
@@ -1047,29 +1049,25 @@ def sample_nine_slice() -> None:
     build_flat_psd("NineSlice", 1920, 1080, layers)
     write_expected_json("NineSlice", (1920, 1080), layers)
 
-def sample_smart_object() -> None:
-    # We build a flat PSD containing one layer named like a smart object. The
-    # PsdReader test for this sample asserts only that the layer is read; it
-    # does NOT depend on actual Smart Object metadata since ImageMagick can't
-    # author embedded smart objects. The SchemaResolver test for smart objects
-    # is gated and skipped when `SmartObject.psd` lacks real SO metadata.
-    layers = [
-        LayerSpec("Avatar#image", (832, 412, 1088, 668), (200, 120, 60, 255)),
+def sample_linked_psd() -> None:
+    parent_layers = [
+        LayerSpec("Avatar#linkedpsd(Avatar.psd)", (832, 412, 1088, 668), (0,0,0,0)),
     ]
-    build_flat_psd("SmartObject", 1920, 1080, layers)
-    write_expected_json("SmartObject", (1920, 1080), layers)
-    # Mark this sample as smart-object-unavailable so tests can skip the SO-specific assertions.
-    (SAMPLE_DIR / "SmartObject.no_real_smart_object.flag").write_text(
-        "Generated by Pillow+ImageMagick; lacks real Photoshop Smart Object metadata.\n"
-        "C++ tests that depend on FPsdSmartRef.EmbeddedPsdBytes must skip on this sample.\n"
-    )
+    build_flat_psd("LinkedPsd", 1920, 1080, parent_layers)
+    write_expected_json("LinkedPsd", (1920, 1080), parent_layers)
+
+    child_layers = [
+        LayerSpec("Body", (0, 0, 256, 256), (200, 120, 60, 255)),
+    ]
+    build_flat_psd("Avatar", 256, 256, child_layers)
+    write_expected_json("Avatar", (256, 256), child_layers)
 
 if __name__ == "__main__":
     sample_simple()
     sample_nested()
     sample_buttons()
     sample_nine_slice()
-    sample_smart_object()
+    sample_linked_psd()
 ```
 
 Run the generator:
@@ -1077,17 +1075,15 @@ Run the generator:
 cd "D:/Ai/Project/PSD2UMG_5.7/Tests/Sample"
 python generate_samples.py
 ```
-Expected: 5 `.psd` files + 5 `.expected.json` files + `SmartObject.no_real_smart_object.flag`.
+Expected: 6 `.psd` files (Simple, Nested, Buttons, NineSlice, LinkedPsd, Avatar) + 6 `.expected.json` files.
 
 Manually open one in any viewer (e.g., GIMP, or `magick identify -verbose Simple.psd | head -30`)
 to confirm layer count.
 
-**Caveat acknowledged in the plan**: Pillow+ImageMagick produces only flat raster layers.
-`Nested.psd` and `SmartObject.psd` use layer naming as a workaround. When real Photoshop
-files are needed for higher-fidelity tests (true groups, true smart objects with embedded
-PSDs, true text layers with font metadata), regenerate those two samples manually in
-Photoshop and replace them. The C++ tests in Task 5 explicitly skip group/smartobject
-assertions when the flag file is present.
+**Caveat acknowledged in the plan**: Pillow+ImageMagick produces only flat raster
+layers. `Nested.psd` uses layer naming to encode hierarchy as a workaround (real
+groups can be added by hand-editing in Photoshop if needed). Tests gate group
+assertions accordingly.
 
 - [ ] **Step 6: Build and run the smoke spec**
 
@@ -1111,9 +1107,9 @@ git commit -m "test(psd2umg): add tests module, smoke spec, and sample PSDs"
 
 ---
 
-## Task 5: PsdReader (PhotoshopAPI → FPsdDocument)
+## Task 5: PsdReader (psd_sdk → FPsdDocument)
 
-**Goal:** Implement and test the adapter that opens a `.psd` file via PhotoshopAPI and emits a `FPsdDocument`. TDD-driven by the sample expected.json files.
+**Goal:** Implement and test the adapter that opens a .psd file via psd_sdk and emits a FPsdDocument. TDD-driven by the sample expected.json files.
 
 **Files:**
 - Create: `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/Private/Importer/PsdReader.h`
@@ -1202,133 +1198,156 @@ Write to `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/Private/Importer/PsdReader.cp
 #include "Importer/PsdReader.h"
 
 THIRD_PARTY_INCLUDES_START
-#include "PhotoshopAPI.h"
+#include "Psd/Psd.h"
+#include "Psd/PsdMallocAllocator.h"
+#include "Psd/PsdNativeFile.h"
+#include "Psd/PsdDocument.h"
+#include "Psd/PsdParseDocument.h"
+#include "Psd/PsdParseLayerMaskSection.h"
+#include "Psd/PsdLayerMaskSection.h"
+#include "Psd/PsdLayer.h"
+#include "Psd/PsdLayerType.h"
+#include "Psd/PsdChannelType.h"
+#include "Psd/PsdChannel.h"
+#include "Psd/PsdColorMode.h"
 THIRD_PARTY_INCLUDES_END
 
-#include "Containers/StringConv.h"
-#include "Math/Box2D.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Async/ParallelFor.h"
+#include "HAL/FileManager.h"
 
 namespace PSD2UMG
 {
     namespace
     {
-        EBlendMode ToBlendMode(NAMESPACE_PSAPI::Enum::BlendMode Mode)
+        bool ExtractLinkedPsdTag(FString& Name, FString& OutRel)
         {
-            using namespace NAMESPACE_PSAPI::Enum;
-            switch (Mode)
-            {
-                case BlendMode::Normal:   return EBlendMode::Normal;
-                case BlendMode::Multiply: return EBlendMode::Multiply;
-                case BlendMode::Screen:   return EBlendMode::Screen;
-                case BlendMode::Overlay:  return EBlendMode::Overlay;
-                case BlendMode::LinearDodge: return EBlendMode::Add;
-                case BlendMode::Subtract: return EBlendMode::Subtract;
-                default: return EBlendMode::Unknown;
-            }
+            const FString Tag = TEXT("#linkedpsd(");
+            const int32 Start = Name.Find(Tag);
+            if (Start == INDEX_NONE) return false;
+            const int32 ArgStart = Start + Tag.Len();
+            const int32 ArgEnd = Name.Find(TEXT(")"), ESearchCase::IgnoreCase, ESearchDir::FromStart, ArgStart);
+            if (ArgEnd == INDEX_NONE) return false;
+            OutRel = Name.Mid(ArgStart, ArgEnd - ArgStart);
+            Name = Name.Left(Start) + Name.Mid(ArgEnd + 1);
+            Name.TrimStartAndEndInline();
+            return true;
         }
 
-        template<typename TBpp>
-        void CopyChannelsToRGBA8(const NAMESPACE_PSAPI::ImageLayer<TBpp>& Layer, TArray<uint8>& OutRGBA)
+        void ExtractRgba8(const psd::Layer* L, TArray<uint8>& OutRgba)
         {
-            const int32 W = Layer.width();
-            const int32 H = Layer.height();
-            OutRGBA.SetNumUninitialized(W * H * 4);
+            const int32 W = L->right - L->left;
+            const int32 H = L->bottom - L->top;
+            if (W <= 0 || H <= 0) return;
 
-            const auto* R = Layer.template channel<NAMESPACE_PSAPI::Enum::ChannelID::Red>();
-            const auto* G = Layer.template channel<NAMESPACE_PSAPI::Enum::ChannelID::Green>();
-            const auto* B = Layer.template channel<NAMESPACE_PSAPI::Enum::ChannelID::Blue>();
-            const auto* A = Layer.template channel<NAMESPACE_PSAPI::Enum::ChannelID::Alpha>();
-
-            for (int32 i = 0; i < W * H; ++i)
+            const uint8_t* RGBA[4] = { nullptr, nullptr, nullptr, nullptr };
+            for (unsigned int i = 0; i < L->channelCount; ++i)
             {
-                OutRGBA[i*4 + 0] = R ? static_cast<uint8>(R->data()[i]) : 0;
-                OutRGBA[i*4 + 1] = G ? static_cast<uint8>(G->data()[i]) : 0;
-                OutRGBA[i*4 + 2] = B ? static_cast<uint8>(B->data()[i]) : 0;
-                OutRGBA[i*4 + 3] = A ? static_cast<uint8>(A->data()[i]) : 255;
+                const auto T = L->channels[i].type;
+                if (T == psd::channelType::R)                   RGBA[0] = static_cast<const uint8_t*>(L->channels[i].data);
+                else if (T == psd::channelType::G)              RGBA[1] = static_cast<const uint8_t*>(L->channels[i].data);
+                else if (T == psd::channelType::B)              RGBA[2] = static_cast<const uint8_t*>(L->channels[i].data);
+                else if (T == psd::channelType::TRANSPARENCY_MASK) RGBA[3] = static_cast<const uint8_t*>(L->channels[i].data);
             }
+
+            OutRgba.SetNumUninitialized(W * H * 4);
+            const int32 PixelCount = W * H;
+            ParallelFor(PixelCount, [&](int32 i)
+            {
+                OutRgba[i*4 + 0] = RGBA[0] ? RGBA[0][i] : 0;
+                OutRgba[i*4 + 1] = RGBA[1] ? RGBA[1][i] : 0;
+                OutRgba[i*4 + 2] = RGBA[2] ? RGBA[2][i] : 0;
+                OutRgba[i*4 + 3] = RGBA[3] ? RGBA[3][i] : 255;
+            });
         }
 
-        FPsdLayer ConvertLayer(const NAMESPACE_PSAPI::Layer<NAMESPACE_PSAPI::bpp8_t>& Src);
-
-        void ConvertChildren(const NAMESPACE_PSAPI::GroupLayer<NAMESPACE_PSAPI::bpp8_t>& Group,
-                             TArray<FPsdLayer>& Out)
+        ELayerKind ClassifyLayer(const psd::Layer* L, FString& InOutName, FString& OutLinkedRel)
         {
-            for (const auto& Child : Group.layers())
+            if (ExtractLinkedPsdTag(InOutName, OutLinkedRel))
             {
-                Out.Add(ConvertLayer(*Child));
+                return ELayerKind::LinkedPsd;
             }
+            if (L->type == psd::layerType::OPEN_FOLDER ||
+                L->type == psd::layerType::CLOSED_FOLDER ||
+                L->type == psd::layerType::SECTION_DIVIDER)
+            {
+                return ELayerKind::Group;
+            }
+            return ELayerKind::Raster;
         }
-
-        FPsdLayer ConvertLayer(const NAMESPACE_PSAPI::Layer<NAMESPACE_PSAPI::bpp8_t>& Src)
-        {
-            FPsdLayer Out;
-            Out.Name = UTF8_TO_TCHAR(Src.name().c_str());
-            Out.Opacity = Src.opacity() / 255.0f;
-            Out.Blend = ToBlendMode(Src.blend_mode());
-            Out.bVisible = Src.visible();
-
-            const auto& R = Src.bbox();
-            Out.Bounds = FBox2D(FVector2D(R.left(), R.top()),
-                                FVector2D(R.right(), R.bottom()));
-
-            if (auto* Group = dynamic_cast<const NAMESPACE_PSAPI::GroupLayer<NAMESPACE_PSAPI::bpp8_t>*>(&Src))
-            {
-                Out.Kind = ELayerKind::Group;
-                ConvertChildren(*Group, Out.Children);
-            }
-            else if (auto* Img = dynamic_cast<const NAMESPACE_PSAPI::ImageLayer<NAMESPACE_PSAPI::bpp8_t>*>(&Src))
-            {
-                Out.Kind = ELayerKind::Raster;
-                CopyChannelsToRGBA8(*Img, Out.Pixels);
-            }
-            else if (auto* Txt = dynamic_cast<const NAMESPACE_PSAPI::TextLayer<NAMESPACE_PSAPI::bpp8_t>*>(&Src))
-            {
-                Out.Kind = ELayerKind::Text;
-                Out.TextRun.Text       = UTF8_TO_TCHAR(Txt->text().c_str());
-                Out.TextRun.FontFamily = UTF8_TO_TCHAR(Txt->font_family().c_str());
-                Out.TextRun.FontSizePx = Txt->font_size();
-                const auto Col = Txt->color();
-                Out.TextRun.Color = FLinearColor(Col.r, Col.g, Col.b, Col.a);
-            }
-            else if (auto* So = dynamic_cast<const NAMESPACE_PSAPI::SmartObjectLayer<NAMESPACE_PSAPI::bpp8_t>*>(&Src))
-            {
-                Out.Kind = ELayerKind::SmartObject;
-                Out.SmartRef.Name = UTF8_TO_TCHAR(So->linked_filename().c_str());
-                const auto& Bytes = So->embedded_data();
-                Out.SmartRef.EmbeddedPsdBytes.Append(Bytes.data(), Bytes.size());
-                Out.SmartRef.SourceHash = FMD5::HashBytes(Out.SmartRef.EmbeddedPsdBytes.GetData(),
-                                                         Out.SmartRef.EmbeddedPsdBytes.Num());
-            }
-            return Out;
-        }
-    } // namespace
+    }
 
     bool FPsdReader::Read(TArrayView<const uint8> PsdBytes, FPsdDocument& OutDoc, FString& OutError)
     {
-        try
-        {
-            std::vector<uint8_t> Buffer(PsdBytes.GetData(), PsdBytes.GetData() + PsdBytes.Num());
-            auto LayeredFile = NAMESPACE_PSAPI::LayeredFile<NAMESPACE_PSAPI::bpp8_t>::read(Buffer);
+        // psd_sdk reads from a file handle. Stage to a temp file.
+        const FString Tmp = FPaths::ProjectIntermediateDir() / TEXT("PSD2UMG") /
+                            FString::Printf(TEXT("read_%p.psd"), PsdBytes.GetData());
+        IFileManager::Get().MakeDirectory(*FPaths::GetPath(Tmp), /*Tree=*/true);
+        FFileHelper::SaveArrayToFile(PsdBytes, *Tmp);
 
-            OutDoc.CanvasSize = FIntPoint(LayeredFile.width(), LayeredFile.height());
-            OutDoc.ColorDepth = static_cast<int32>(LayeredFile.bit_depth());
-
-            for (const auto& Child : LayeredFile.layers())
-            {
-                OutDoc.Layers.Add(ConvertLayer(*Child));
-            }
-            return true;
-        }
-        catch (const std::exception& Ex)
+        psd::MallocAllocator Alloc;
+        psd::NativeFile File(&Alloc);
+        if (!File.OpenRead(TCHAR_TO_WCHAR(*Tmp)))
         {
-            OutError = UTF8_TO_TCHAR(Ex.what());
+            OutError = TEXT("psd_sdk: failed to open file");
             return false;
         }
+
+        psd::Document* Doc = psd::CreateDocument(&File, &Alloc);
+        if (!Doc) { File.Close(); OutError = TEXT("psd_sdk: not a valid PSD (PSB unsupported)"); return false; }
+        if (Doc->colorMode != psd::colorMode::RGB)
+        {
+            OutError = TEXT("psd_sdk: only RGB color mode supported in v1");
+            psd::DestroyDocument(Doc, &Alloc); File.Close();
+            return false;
+        }
+
+        OutDoc.CanvasSize = FIntPoint(Doc->width, Doc->height);
+        OutDoc.ColorDepth = static_cast<int32>(Doc->bitsPerChannel);
+
+        psd::LayerMaskSection* Section = psd::ParseLayerMaskSection(Doc, &File, &Alloc);
+        if (Section)
+        {
+            for (unsigned int i = 0; i < Section->layerCount; ++i)
+            {
+                psd::Layer* L = &Section->layers[i];
+                FPsdLayer Out;
+                Out.Name = (L->utf16Name ? FString(L->utf16Name) : FString(UTF8_TO_TCHAR(L->name.c_str())));
+                FString LinkedRel;
+                Out.Kind = ClassifyLayer(L, Out.Name, LinkedRel);
+                Out.Bounds = FBox2D(FVector2D(L->left, L->top), FVector2D(L->right, L->bottom));
+                Out.Opacity = L->opacity / 255.0f;
+                Out.bVisible = L->isVisible;
+
+                if (Out.Kind == ELayerKind::LinkedPsd)
+                {
+                    Out.LinkedRef.RelPath = LinkedRel;
+                }
+                else if (Out.Kind == ELayerKind::Raster)
+                {
+                    psd::ExtractLayer(Doc, &File, &Alloc, L);
+                    ExtractRgba8(L, Out.Pixels);
+                }
+                // Group nesting is encoded via SECTION_DIVIDER markers in the flat list.
+                // PsdSchemaResolver (Task 8) is responsible for reconstructing the tree.
+
+                OutDoc.Layers.Add(MoveTemp(Out));
+            }
+            psd::DestroyLayerMaskSection(Section, &Alloc);
+        }
+
+        psd::DestroyDocument(Doc, &Alloc);
+        File.Close();
+        IFileManager::Get().Delete(*Tmp);
+        return true;
     }
 }
 ```
 
-The exact PhotoshopAPI symbol names (`NAMESPACE_PSAPI`, `LayeredFile`, `bpp8_t`, `ChannelID`, `bbox`, etc.) must match the vendored headers. If a name doesn't match: open `Source/PhotoshopAPI/Includes/PhotoshopAPI.h` and the LayeredFile header, find the actual symbol, fix the call site, then rebuild. Do not invent symbols.
+The exact API symbols may differ slightly from this skeleton (e.g. `psd::layerType` vs `psd::LayerType::Type`); the implementer must check actual headers in `Source/psd_sdk/Includes/Psd/` and adjust.
+
+Note for the implementer about flat-list-vs-tree: psd_sdk returns layers in a flat list with `SECTION_DIVIDER` markers separating folders. The skeleton above flattens everything (groups appear as Group-kind layers without children). Tree reconstruction is intentionally deferred to `PsdSchemaResolver` (Task 8), which walks the flat list and rebuilds parent/child relationships from the divider markers.
 
 - [ ] **Step 4: Build and run**
 
@@ -1344,19 +1363,19 @@ Expected: PASS.
 
 - [ ] **Step 5: Add tests for the remaining 4 samples**
 
-Append four more `Describe` blocks to `PsdReader.spec.cpp` — one each for `Nested`, `Buttons`, `NineSlice`, `SmartObject`. Each tests:
+Append four more `Describe` blocks to `PsdReader.spec.cpp` — one each for `Nested`, `Buttons`, `NineSlice`, `LinkedPsd` (and a fifth for `Avatar`). Each tests:
 1. Layer count (flat for non-nested; recursive count for `Nested`).
 2. Top-level layer names match expected.json.
-3. For `SmartObject`: the embedded bytes are non-empty and `SourceHash` is non-empty.
+3. For `LinkedPsd`: the layer with `#linkedpsd(...)` tag has `Kind == ELayerKind::LinkedPsd` and `LinkedRef.RelPath == "Avatar.psd"`.
 
-Re-run the spec. Expected: all 5 Describe blocks pass.
+Re-run the spec. Expected: all Describe blocks pass.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 cd "D:/Ai/Project/PSD2UMG_5.7"
 git add -A
-git commit -m "feat(psd2umg): add FPsdReader (PhotoshopAPI to FPsdDocument adapter)"
+git commit -m "feat(psd2umg): add FPsdReader (psd_sdk to FPsdDocument adapter)"
 ```
 
 ---
@@ -1429,7 +1448,7 @@ namespace PSD2UMG
         EButtonState ButtonState = EButtonState::Normal;
         EProgressPart ProgressPart = EProgressPart::Background;
 
-        FName  SubWidgetAssetName;   // for SubWidget (SmartObject)
+        FName  SubWidgetAssetName;   // for SubWidget (LinkedPsd)
         FSoftObjectPath StyleAssetRef;
 
         TArray<FWidgetSpec> Children;
@@ -1837,7 +1856,7 @@ git commit -m "feat(psd2umg): add sidecar JSON loader with globals and per-layer
 
 ## Task 8: PsdSchemaResolver
 
-**Goal:** Combine `FPsdDocument` + sidecar + project defaults into a `FWidgetSpec` tree. Handles default anchor preset, SmartObject child-WBP referencing, and button-state aggregation.
+**Goal:** Combine `FPsdDocument` + sidecar + project defaults into a `FWidgetSpec` tree. Handles default anchor preset, LinkedPsd child-WBP referencing, and button-state aggregation.
 
 **Files:**
 - Create: `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/Private/Schema/PsdSchemaResolver.h`
@@ -1891,12 +1910,12 @@ void FPsdSchemaResolverSpec::Define()
         });
     });
 
-    Describe("SmartObject.psd → spec tree", [this]()
+    Describe("LinkedPsd.psd → spec tree", [this]()
     {
         It("emits a SubWidget child with non-empty SubWidgetAssetName", [this]()
         {
             TArray<uint8> Bytes;
-            FFileHelper::LoadFileToArray(Bytes, *PSD2UMGTest::GetSamplePsdPath(TEXT("SmartObject")));
+            FFileHelper::LoadFileToArray(Bytes, *PSD2UMGTest::GetSamplePsdPath(TEXT("LinkedPsd")));
             FPsdDocument Doc; FString Err;
             FPsdReader::Read(Bytes, Doc, Err);
 
@@ -1931,7 +1950,7 @@ namespace PSD2UMG
         FPsdSidecar Sidecar;
         bool        ProjectDefaultUseCommonUI = true;
         FString     PsdName;                // used for child WBP naming
-        TSet<FString> VisitedSmartHashes;   // cycle detection
+        TSet<FString> VisitedLinkedPsdPaths;   // cycle detection
     };
 
     class FPsdSchemaResolver
@@ -2006,17 +2025,17 @@ namespace PSD2UMG
             Out.TextStyle.Color      = Layer.TextRun.Color;
             Out.TextStyle.Justify    = Layer.TextRun.Justify;
         }
-        else if (Layer.Kind == ELayerKind::SmartObject)
+        else if (Layer.Kind == ELayerKind::LinkedPsd)
         {
-            if (Ctx.VisitedSmartHashes.Contains(Layer.SmartRef.SourceHash))
+            if (Ctx.VisitedLinkedPsdPaths.Contains(Layer.LinkedRef.AbsPath))
             {
-                Warnings.Add(FString::Printf(TEXT("smart object cycle on '%s'"), *Layer.Name));
+                Warnings.Add(FString::Printf(TEXT("linked psd cycle on '%s'"), *Layer.Name));
                 Out.Type = EWidgetType::Skip;
                 return;
             }
-            Ctx.VisitedSmartHashes.Add(Layer.SmartRef.SourceHash);
+            Ctx.VisitedLinkedPsdPaths.Add(Layer.LinkedRef.AbsPath);
             Out.Type = EWidgetType::SubWidget;
-            Out.SubWidgetAssetName = FName(*(FString(TEXT("WBP_SO_")) + P.BaseName));
+            Out.SubWidgetAssetName = FName(*(FString(TEXT("WBP_")) + FPaths::GetBaseFilename(Layer.LinkedRef.RelPath)));
         }
         else
         {
@@ -2903,7 +2922,7 @@ git commit -m "feat(psd2umg): UmgBuilder slice 3 — ProgressBar/Text/NamedSlot/
 
 ---
 
-## Task 14: UmgBuilder — SubWidget (SmartObject reference)
+## Task 14: UmgBuilder slice 4 — SubWidget (LinkedPsd reference)
 
 **Goal:** When a spec is `EWidgetType::SubWidget`, emit a `UUserWidget` referencing a child WBP that the Importer will have built earlier in the recursion.
 
@@ -2915,7 +2934,7 @@ git commit -m "feat(psd2umg): UmgBuilder slice 3 — ProgressBar/Text/NamedSlot/
 
 Append to `UmgBuilder.spec.cpp`:
 ```cpp
-    Describe("smart object subwidget", [this]()
+    Describe("linked psd subwidget", [this]()
     {
         It("creates a UUserWidget referencing the child WBP path", [this]()
         {
@@ -2923,7 +2942,7 @@ Append to `UmgBuilder.spec.cpp`:
             FWidgetSpec ChildRoot; ChildRoot.Type = EWidgetType::Canvas;
             ChildRoot.WidgetName = TEXT("Root");
             ChildRoot.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(256,256));
-            FUmgBuildContext ChildCtx { TEXT("/Game/PSD2UMG_UmgBuilderSpec_Sub"), TEXT("WBP_SO_Avatar") };
+            FUmgBuildContext ChildCtx { TEXT("/Game/PSD2UMG_UmgBuilderSpec_Sub"), TEXT("WBP_Avatar") };
             UWidgetBlueprint* ChildWbp = FUmgBuilder::Build(ChildCtx, ChildRoot);
             TestNotNull("child wbp", ChildWbp);
 
@@ -2932,7 +2951,7 @@ Append to `UmgBuilder.spec.cpp`:
             Root.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(1920,1080));
             FWidgetSpec Sub; Sub.Type = EWidgetType::SubWidget;
             Sub.WidgetName = TEXT("AvatarSlot");
-            Sub.SubWidgetAssetName = TEXT("WBP_SO_Avatar");
+            Sub.SubWidgetAssetName = TEXT("WBP_Avatar");
             Sub.Bounds = FBox2D(FVector2D(10,10), FVector2D(266,266));
             Root.Children.Add(MoveTemp(Sub));
 
@@ -2971,7 +2990,7 @@ Add the switch case. Run, expect PASS.
 
 ```bash
 git add -A
-git commit -m "feat(psd2umg): UmgBuilder slice 4 — SubWidget for Smart Objects"
+git commit -m "feat(psd2umg): UmgBuilder slice 4 — SubWidget for LinkedPsd references"
 ```
 
 ---
@@ -3163,7 +3182,7 @@ git commit -m "feat(psd2umg): add PSD2UMGCache asset and AssetDefinition for UE 
 
 ## Task 17: PSD2UMGFactory — orchestrate Importer → Schema → Builder
 
-**Goal:** `UFactory` subclass that ties everything together: read .psd, build textures, resolve schema, build WBP, create `UPSD2UMGCache` Reimport handle. Recursively handles Smart Object embedded PSDs.
+**Goal:** `UFactory` subclass that ties everything together: read .psd, build textures, resolve schema, build WBP, create `UPSD2UMGCache` Reimport handle. Recursively handles linked sibling PSDs (resolved via the `#linkedpsd(...)` naming convention).
 
 **Files:**
 - Create: `D:/Ai/Project/PSD2UMG_5.7/Source/PSD2UMG/Private/Importer/PSD2UMGFactory.h`
@@ -3282,11 +3301,13 @@ UClass* UPSD2UMGFactory::ResolveSupportedClass()       { return UPSD2UMGCache::S
 
 namespace
 {
-    void BuildSmartObjectsRecursively(const FPsdLayer& Layer, FResolveContext& Ctx,
-                                       const FString& PackagePath, const FString& PsdBaseName,
-                                       FMessageLog& Log);
+    void BuildLinkedPsdsRecursively(const FPsdLayer& Layer, FResolveContext& Ctx,
+                                     const FString& ParentPsdAbsolutePath,
+                                     const FString& ParentPackagePath,
+                                     FMessageLog& Log);
 
-    void BuildOneWbp(const TArray<uint8>& PsdBytes, const FString& PackagePath,
+    void BuildOneWbp(const TArray<uint8>& PsdBytes, const FString& PsdAbsolutePath,
+                     const FString& PackagePath,
                      const FString& WbpName, FResolveContext& Ctx, FMessageLog& Log)
     {
         FPsdDocument Doc; FString Err;
@@ -3313,16 +3334,16 @@ namespace
         };
         for (const FPsdLayer& L : Doc.Layers) EmitTexture(L);
 
-        // 2. build SmartObject child WBPs first (recursive).
-        TFunction<void(const FPsdLayer&)> EmitSmart = [&](const FPsdLayer& L)
+        // 2. build LinkedPsd child WBPs first (recursive, sibling files on disk).
+        TFunction<void(const FPsdLayer&)> EmitLinked = [&](const FPsdLayer& L)
         {
-            if (L.Kind == ELayerKind::SmartObject)
+            if (L.Kind == ELayerKind::LinkedPsd)
             {
-                BuildSmartObjectsRecursively(L, Ctx, PackagePath / TEXT("SmartObjects"), L.Name, Log);
+                BuildLinkedPsdsRecursively(L, Ctx, PsdAbsolutePath, PackagePath, Log);
             }
-            for (const FPsdLayer& C : L.Children) EmitSmart(C);
+            for (const FPsdLayer& C : L.Children) EmitLinked(C);
         };
-        for (const FPsdLayer& L : Doc.Layers) EmitSmart(L);
+        for (const FPsdLayer& L : Doc.Layers) EmitLinked(L);
 
         // 3. resolve schema and build WBP.
         FWidgetSpec Root;
@@ -3334,20 +3355,34 @@ namespace
         FUmgBuilder::Build(UCtx, Root);
     }
 
-    void BuildSmartObjectsRecursively(const FPsdLayer& Layer, FResolveContext& Ctx,
-                                       const FString& ChildPackagePath, const FString& BaseName,
-                                       FMessageLog& Log)
+    void BuildLinkedPsdsRecursively(const FPsdLayer& Layer, FResolveContext& Ctx,
+                                     const FString& ParentPsdAbsolutePath,
+                                     const FString& ParentPackagePath,
+                                     FMessageLog& Log)
     {
-        if (Ctx.VisitedSmartHashes.Contains(Layer.SmartRef.SourceHash))
+        const FString ParentDir = FPaths::GetPath(ParentPsdAbsolutePath);
+        const FString AbsPath = FPaths::ConvertRelativePathToFull(ParentDir / Layer.LinkedRef.RelPath);
+
+        if (Ctx.VisitedLinkedPsdPaths.Contains(AbsPath))
         {
-            Log.Warning(FText::Format(LOCTEXT("Cycle", "Smart object cycle on layer {0}"),
-                                       FText::FromString(Layer.Name)));
+            Log.Warning(FText::Format(LOCTEXT("Cycle", "Linked PSD cycle on layer {0} ({1})"),
+                                       FText::FromString(Layer.Name),
+                                       FText::FromString(AbsPath)));
             return;
         }
-        Ctx.VisitedSmartHashes.Add(Layer.SmartRef.SourceHash);
+        Ctx.VisitedLinkedPsdPaths.Add(AbsPath);
 
-        const TArray<uint8>& Bytes = Layer.SmartRef.EmbeddedPsdBytes;
-        BuildOneWbp(Bytes, ChildPackagePath, FString(TEXT("WBP_SO_")) + BaseName, Ctx, Log);
+        TArray<uint8> Bytes;
+        if (!FFileHelper::LoadFileToArray(Bytes, *AbsPath))
+        {
+            Log.Error(FText::Format(LOCTEXT("LinkMissing", "Linked PSD not found: {0}"),
+                                     FText::FromString(AbsPath)));
+            return;
+        }
+
+        const FString SubName = FPaths::GetBaseFilename(AbsPath);
+        const FString SubPackagePath = FPaths::GetPath(ParentPackagePath) / SubName;
+        BuildOneWbp(Bytes, AbsPath, SubPackagePath, FString(TEXT("WBP_")) + SubName, Ctx, Log);
     }
 }
 
@@ -3368,7 +3403,7 @@ UPSD2UMGCache* UPSD2UMGFactory::ImportFromFile(const FString& PsdAbsolutePath, c
     Ctx.ProjectDefaultUseCommonUI = Settings ? Settings->bDefaultToCommonUI : true;
     Ctx.PsdName = FPaths::GetBaseFilename(PsdAbsolutePath);
 
-    BuildOneWbp(Bytes, OutPackagePath, FString(TEXT("WBP_")) + Ctx.PsdName, Ctx, Log);
+    BuildOneWbp(Bytes, PsdAbsolutePath, OutPackagePath, FString(TEXT("WBP_")) + Ctx.PsdName, Ctx, Log);
 
     // Create the Cache asset as Reimport handle.
     UPackage* Pkg = CreatePackage(*(OutPackagePath / (FString(TEXT("PsdCache_")) + Ctx.PsdName)));
@@ -3616,5 +3651,5 @@ After writing the plan, the following were cross-checked against the spec:
 - §6 Reimport increment is a v1 simplification (clear and rebuild) — explicitly documented as a deferred enhancement, idempotence test in Task 18 enforces stable count/names.
 - §7 MessageLog covered in Task 1 (registration) and Task 19 (auto-show).
 - §8 testing — 5 sample PSDs in Task 4; PsdReader spec in Task 5; SchemaResolver in Task 8; UmgBuilder in 11–14; Factory in 17; Reimport in 18.
-- §9 risks: PhotoshopAPI API drift handled by the `PsdReader` adapter layer (Task 5); cycle detection in `PsdSchemaResolver` (Task 8 + Task 17 `BuildSmartObjectsRecursively`).
+- §9 risks: psd_sdk symbol drift across upstream commits handled by the `PsdReader` adapter layer (Task 5); cycle detection in `PsdSchemaResolver` (Task 8 + Task 17 `BuildLinkedPsdsRecursively`).
 - §10 acceptance: every bullet is verified by Task 21 Step 2's manual smoke or by the Automation spec suite.

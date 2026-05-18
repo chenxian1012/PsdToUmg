@@ -7,6 +7,11 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Image.h"
+#include "Components/NamedSlot.h"
+#include "Components/ProgressBar.h"
+#include "Components/ScaleBox.h"
+#include "Components/SizeBox.h"
+#include "Components/TextBlock.h"
 #include "Engine/Texture2D.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Layout/Margin.h"
@@ -149,15 +154,78 @@ namespace PSD2UMG
             return Btn;
         }
 
+        UWidget* BuildProgressBar(UWidgetBlueprint* Wbp, UPanelWidget* Parent, const FWidgetSpec& Spec)
+        {
+            UProgressBar* PB = Wbp->WidgetTree->ConstructWidget<UProgressBar>(
+                UProgressBar::StaticClass(), Spec.WidgetName);
+            Parent->AddChild(PB);
+            ApplyCanvasSlot(PB, Spec);
+            return PB;
+        }
+
+        UWidget* BuildText(UWidgetBlueprint* Wbp, UPanelWidget* Parent, const FWidgetSpec& Spec)
+        {
+            UTextBlock* T = Wbp->WidgetTree->ConstructWidget<UTextBlock>(
+                UTextBlock::StaticClass(), Spec.WidgetName);
+            Parent->AddChild(T);
+            ApplyCanvasSlot(T, Spec);
+            T->SetText(FText::FromString(Spec.TextStyle.Text));
+            if (Spec.TextStyle.FontSizePx > 0)
+            {
+                FSlateFontInfo Font = T->GetFont();
+                Font.Size = FMath::RoundToInt(Spec.TextStyle.FontSizePx);
+                T->SetFont(Font);
+            }
+            T->SetColorAndOpacity(FSlateColor(Spec.TextStyle.Color));
+            return T;
+        }
+
+        UWidget* BuildNamedSlot(UWidgetBlueprint* Wbp, UPanelWidget* Parent, const FWidgetSpec& Spec)
+        {
+            UNamedSlot* NS = Wbp->WidgetTree->ConstructWidget<UNamedSlot>(
+                UNamedSlot::StaticClass(), Spec.WidgetName);
+            Parent->AddChild(NS);
+            ApplyCanvasSlot(NS, Spec);
+            return NS;
+        }
+
+        UWidget* BuildSizeBox(UWidgetBlueprint* Wbp, UPanelWidget* Parent, const FWidgetSpec& Spec)
+        {
+            USizeBox* SB = Wbp->WidgetTree->ConstructWidget<USizeBox>(
+                USizeBox::StaticClass(), Spec.WidgetName);
+            Parent->AddChild(SB);
+            ApplyCanvasSlot(SB, Spec);
+            const FVector2D Sz = Spec.Bounds.GetSize();
+            if (Sz.X > 0) SB->SetWidthOverride(Sz.X);
+            if (Sz.Y > 0) SB->SetHeightOverride(Sz.Y);
+            for (const FWidgetSpec& C : Spec.Children) BuildSpec(Wbp, SB, C);
+            return SB;
+        }
+
+        UWidget* BuildScaleBox(UWidgetBlueprint* Wbp, UPanelWidget* Parent, const FWidgetSpec& Spec)
+        {
+            UScaleBox* SB = Wbp->WidgetTree->ConstructWidget<UScaleBox>(
+                UScaleBox::StaticClass(), Spec.WidgetName);
+            Parent->AddChild(SB);
+            ApplyCanvasSlot(SB, Spec);
+            for (const FWidgetSpec& C : Spec.Children) BuildSpec(Wbp, SB, C);
+            return SB;
+        }
+
         UWidget* BuildSpec(UWidgetBlueprint* Wbp, UPanelWidget* Parent, const FWidgetSpec& Spec)
         {
             switch (Spec.Type)
             {
-                case EWidgetType::Canvas: return BuildCanvas(Wbp, Parent, Spec);
-                case EWidgetType::Image:  return BuildImage(Wbp, Parent, Spec);
-                case EWidgetType::Button: return BuildButton(Wbp, Parent, Spec);
-                case EWidgetType::Skip:   return nullptr;
-                default:                  return nullptr;  // other types added in tasks 13-14
+                case EWidgetType::Canvas:      return BuildCanvas(Wbp, Parent, Spec);
+                case EWidgetType::Image:       return BuildImage(Wbp, Parent, Spec);
+                case EWidgetType::Button:      return BuildButton(Wbp, Parent, Spec);
+                case EWidgetType::ProgressBar: return BuildProgressBar(Wbp, Parent, Spec);
+                case EWidgetType::Text:        return BuildText(Wbp, Parent, Spec);
+                case EWidgetType::NamedSlot:   return BuildNamedSlot(Wbp, Parent, Spec);
+                case EWidgetType::SizeBox:     return BuildSizeBox(Wbp, Parent, Spec);
+                case EWidgetType::ScaleBox:    return BuildScaleBox(Wbp, Parent, Spec);
+                case EWidgetType::Skip:        return nullptr;
+                default:                       return nullptr;  // SubWidget added in Task 14
             }
         }
     }

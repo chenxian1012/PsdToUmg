@@ -9,6 +9,11 @@
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/Image.h"
+#include "Components/NamedSlot.h"
+#include "Components/ProgressBar.h"
+#include "Components/ScaleBox.h"
+#include "Components/SizeBox.h"
+#include "Components/TextBlock.h"
 #include "WidgetBlueprint.h"
 
 BEGIN_DEFINE_SPEC(FUmgBuilderSpec, "PSD2UMG.UmgBuilder",
@@ -76,6 +81,89 @@ void FUmgBuilderSpec::Define()
 
             UButton* B = Wbp->WidgetTree->FindWidget<UButton>(TEXT("Play"));
             TestNotNull("button widget", B);
+        });
+    });
+
+    Describe("progress bar", [this]()
+    {
+        It("creates a UProgressBar", [this]()
+        {
+            PSD2UMG::FWidgetSpec Root;
+            Root.Type = PSD2UMG::EWidgetType::Canvas; Root.WidgetName = TEXT("Root");
+            Root.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(1920, 1080));
+            PSD2UMG::FWidgetSpec PB; PB.Type = PSD2UMG::EWidgetType::ProgressBar;
+            PB.WidgetName = TEXT("HpBar"); PB.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(200, 20));
+            Root.Children.Add(MoveTemp(PB));
+            PSD2UMG::FUmgBuildContext Ctx { TEXT("/Game/PSD2UMG_UmgBuilderSpec_PB"), TEXT("WBP_Spec_PB") };
+            UWidgetBlueprint* Wbp = PSD2UMG::FUmgBuilder::Build(Ctx, Root);
+            TestNotNull("pb", Wbp->WidgetTree->FindWidget<UProgressBar>(TEXT("HpBar")));
+        });
+    });
+
+    Describe("text block", [this]()
+    {
+        It("creates a UTextBlock with text content", [this]()
+        {
+            PSD2UMG::FWidgetSpec Root;
+            Root.Type = PSD2UMG::EWidgetType::Canvas; Root.WidgetName = TEXT("Root");
+            Root.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(1920, 1080));
+            PSD2UMG::FWidgetSpec T; T.Type = PSD2UMG::EWidgetType::Text; T.WidgetName = TEXT("Title");
+            T.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(400, 40));
+            T.TextStyle.Text = TEXT("Hello"); T.TextStyle.FontSizePx = 24;
+            Root.Children.Add(MoveTemp(T));
+            PSD2UMG::FUmgBuildContext Ctx { TEXT("/Game/PSD2UMG_UmgBuilderSpec_T"), TEXT("WBP_Spec_T") };
+            UWidgetBlueprint* Wbp = PSD2UMG::FUmgBuilder::Build(Ctx, Root);
+            UTextBlock* Tb = Wbp->WidgetTree->FindWidget<UTextBlock>(TEXT("Title"));
+            TestNotNull("text", Tb);
+            TestEqual("text content", Tb->GetText().ToString(), FString(TEXT("Hello")));
+        });
+    });
+
+    Describe("named slot", [this]()
+    {
+        It("creates a UNamedSlot", [this]()
+        {
+            PSD2UMG::FWidgetSpec Root;
+            Root.Type = PSD2UMG::EWidgetType::Canvas; Root.WidgetName = TEXT("Root");
+            Root.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(1920, 1080));
+            PSD2UMG::FWidgetSpec NS; NS.Type = PSD2UMG::EWidgetType::NamedSlot;
+            NS.WidgetName = TEXT("HeaderSlot"); NS.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(600, 80));
+            Root.Children.Add(MoveTemp(NS));
+            PSD2UMG::FUmgBuildContext Ctx { TEXT("/Game/PSD2UMG_UmgBuilderSpec_NS"), TEXT("WBP_Spec_NS") };
+            UWidgetBlueprint* Wbp = PSD2UMG::FUmgBuilder::Build(Ctx, Root);
+            TestNotNull("ns", Wbp->WidgetTree->FindWidget<UNamedSlot>(TEXT("HeaderSlot")));
+        });
+    });
+
+    Describe("size box", [this]()
+    {
+        It("creates a USizeBox with width/height overrides", [this]()
+        {
+            PSD2UMG::FWidgetSpec Root;
+            Root.Type = PSD2UMG::EWidgetType::Canvas; Root.WidgetName = TEXT("Root");
+            Root.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(1920, 1080));
+            PSD2UMG::FWidgetSpec SB; SB.Type = PSD2UMG::EWidgetType::SizeBox;
+            SB.WidgetName = TEXT("Fixed"); SB.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(200, 80));
+            Root.Children.Add(MoveTemp(SB));
+            PSD2UMG::FUmgBuildContext Ctx { TEXT("/Game/PSD2UMG_UmgBuilderSpec_SZ"), TEXT("WBP_Spec_SZ") };
+            UWidgetBlueprint* Wbp = PSD2UMG::FUmgBuilder::Build(Ctx, Root);
+            TestNotNull("sb", Wbp->WidgetTree->FindWidget<USizeBox>(TEXT("Fixed")));
+        });
+    });
+
+    Describe("scale box", [this]()
+    {
+        It("creates a UScaleBox", [this]()
+        {
+            PSD2UMG::FWidgetSpec Root;
+            Root.Type = PSD2UMG::EWidgetType::Canvas; Root.WidgetName = TEXT("Root");
+            Root.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(1920, 1080));
+            PSD2UMG::FWidgetSpec SB; SB.Type = PSD2UMG::EWidgetType::ScaleBox;
+            SB.WidgetName = TEXT("Scale"); SB.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(400, 300));
+            Root.Children.Add(MoveTemp(SB));
+            PSD2UMG::FUmgBuildContext Ctx { TEXT("/Game/PSD2UMG_UmgBuilderSpec_SC"), TEXT("WBP_Spec_SC") };
+            UWidgetBlueprint* Wbp = PSD2UMG::FUmgBuilder::Build(Ctx, Root);
+            TestNotNull("sc", Wbp->WidgetTree->FindWidget<UScaleBox>(TEXT("Scale")));
         });
     });
 }

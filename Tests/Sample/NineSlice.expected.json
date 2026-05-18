@@ -7,13 +7,13 @@
 	"layerCount": 1,
 	"layers": [
 		{
-			"name": "L1",
+			"name": "Panel#9slice(8,8,8,8)",
 			"kind": "Raster",
 			"bounds": [
-				0,
-				0,
-				1920,
-				1080
+				200,
+				200,
+				1720,
+				880
 			],
 			"visible": true,
 			"opacity": 1

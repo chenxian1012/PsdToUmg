@@ -7,7 +7,7 @@
 	"layerCount": 1,
 	"layers": [
 		{
-			"name": "L1",
+			"name": "Body",
 			"kind": "Raster",
 			"bounds": [
 				0,

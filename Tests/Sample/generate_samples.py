@@ -1,24 +1,19 @@
 """
-Deterministically build 6 test PSDs and their expected.json metadata.
+Deterministically build 6 test PSDs for PSD2UMG.
 
-Pipeline per sample:
-  1. Render each layer as a transparent PNG (Pillow).
-  2. Call `magick LAYER_PNGS -compose Over OUT.psd` so each PNG becomes a
-     Photoshop layer.
-  3. Write <Sample>.expected.json with the layer metadata C++ tests assert on.
-
-Limitations: ImageMagick exports flat layered PSDs; groups and smart objects
-are not representable this way. `Nested.psd` uses layer-name conventions
-to encode hierarchy. The `LinkedPsd` sample uses the `#linkedpsd(Avatar.psd)`
-naming convention pointing to the sibling `Avatar.psd` file.
+Uses psd-tools (pure Python) to write multi-layer PSDs with custom layer
+names preserved. Replaces the previous ImageMagick-based generator which
+merged same-bounds layers and stripped layer names.
 """
 
 from __future__ import annotations
-import json
-import subprocess
+
 from dataclasses import dataclass
 from pathlib import Path
+
 from PIL import Image, ImageDraw
+from psd_tools import PSDImage
+from psd_tools.api.layers import PixelLayer
 
 SAMPLE_DIR = Path(__file__).parent
 
@@ -26,102 +21,78 @@ SAMPLE_DIR = Path(__file__).parent
 @dataclass
 class LayerSpec:
     name: str
-    bounds: tuple[int, int, int, int]   # left, top, right, bottom
-    color: tuple[int, int, int, int]    # RGBA
+    # bounds = (left, top, right, bottom)
+    bounds: tuple[int, int, int, int]
+    # color = (r, g, b, a)
+    color: tuple[int, int, int, int]
 
 
-def render_layer(canvas_w: int, canvas_h: int, layer: LayerSpec) -> Image.Image:
-    img = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.rectangle(layer.bounds, fill=layer.color)
-    return img
+def _render_layer_pil(layer: LayerSpec) -> tuple[Image.Image, int, int]:
+    """Render the layer rectangle as a tight PIL Image; return (img, left, top)."""
+    l, t, r, b = layer.bounds
+    w, h = r - l, b - t
+    img = Image.new("RGBA", (w, h), layer.color)
+    return img, l, t
 
 
-def build_flat_psd(name: str, canvas_w: int, canvas_h: int, layers: list[LayerSpec]) -> None:
-    out_psd = SAMPLE_DIR / f"{name}.psd"
-    pngs: list[Path] = []
+def write_psd(name: str, canvas: tuple[int, int], layers: list[LayerSpec]) -> None:
+    """Write a multi-layer PSD via psd-tools, preserving exact layer names."""
+    psd = PSDImage.new(mode="RGBA", size=canvas)
     for layer in layers:
-        # Sanitize layer name for filename (replace # ( ) , with _)
-        safe = layer.name.replace("#", "_").replace("(", "_").replace(")", "_").replace(",", "_")
-        p = SAMPLE_DIR / f"_tmp_{name}_{safe}.png"
-        render_layer(canvas_w, canvas_h, layer).save(p)
-        pngs.append(p)
-
-    cmd = ["magick"] + [str(p) for p in pngs] + ["-compose", "Over", str(out_psd)]
-    subprocess.run(cmd, check=True)
-    for p in pngs:
-        p.unlink()
-
-    print(f"wrote {out_psd}")
-
-
-def write_expected_json(name: str, canvas: tuple[int, int],
-                         layers: list[LayerSpec], color_depth: int = 8) -> None:
-    data = {
-        "canvasSize": list(canvas),
-        "colorDepth": color_depth,
-        "layerCount": len(layers),
-        "layers": [
-            {"name": l.name, "kind": "Raster", "bounds": list(l.bounds)}
-            for l in layers
-        ],
-    }
-    (SAMPLE_DIR / f"{name}.expected.json").write_text(json.dumps(data, indent=2))
+        img, left, top = _render_layer_pil(layer)
+        PixelLayer.frompil(image=img, parent=psd, name=layer.name, top=top, left=left)
+    out_path = SAMPLE_DIR / f"{name}.psd"
+    psd.save(str(out_path))
+    print(f"wrote {out_path}")
 
 
 # --- Sample definitions ---------------------------------------------------
 
 def sample_simple() -> None:
-    layers = [
-        LayerSpec("Background", (0,    0, 1920, 1080), (40,  40,  60, 255)),
+    write_psd("Simple", (1920, 1080), [
+        LayerSpec("Background", (0,    0, 1920, 1080), ( 40,  40,  60, 255)),
         LayerSpec("Logo",       (50,   50,  562,  178), (200, 200, 200, 255)),
-        LayerSpec("Footer",     (0, 1000, 1920, 1080), (20,  20,  30, 200)),
-    ]
-    build_flat_psd("Simple", 1920, 1080, layers)
-    write_expected_json("Simple", (1920, 1080), layers)
+        LayerSpec("Footer",     (0, 1000, 1920, 1080), ( 20,  20,  30, 200)),
+    ])
 
 
 def sample_nested() -> None:
-    layers = [
-        LayerSpec("HUD_Score",          (50,   50,  300,  90),  (255, 215, 0,   255)),
-        LayerSpec("HUD_Time",           (50,  100,  300, 140),  (255, 215, 0,   255)),
-        LayerSpec("Menu_Buttons_Play",  (800, 500, 1120, 600),  (100, 200, 100, 255)),
-    ]
-    build_flat_psd("Nested", 1920, 1080, layers)
-    write_expected_json("Nested", (1920, 1080), layers)
+    # ImageMagick can't author PSD groups; psd-tools can with Group, but to keep
+    # the sample simple and the Schema test focused, we still encode hierarchy
+    # via layer names (HUD_Score, HUD_Time, Menu_Buttons_Play). PsdSchemaResolver
+    # is responsible for reconstructing groups from naming if/when needed.
+    write_psd("Nested", (1920, 1080), [
+        LayerSpec("HUD_Score",         (50,   50,  300,  90), (255, 215,   0, 255)),
+        LayerSpec("HUD_Time",          (50,  100,  300, 140), (255, 215,   0, 255)),
+        LayerSpec("Menu_Buttons_Play", (800, 500, 1120, 600), (100, 200, 100, 255)),
+    ])
 
 
 def sample_buttons() -> None:
-    layers = [
+    write_psd("Buttons", (1920, 1080), [
         LayerSpec("PlayBtn#button_normal",  (760, 460, 1160, 620), ( 80, 140, 220, 255)),
         LayerSpec("PlayBtn#button_hovered", (760, 460, 1160, 620), (120, 180, 255, 255)),
         LayerSpec("PlayBtn#button_pressed", (760, 460, 1160, 620), ( 50, 100, 180, 255)),
-    ]
-    build_flat_psd("Buttons", 1920, 1080, layers)
-    write_expected_json("Buttons", (1920, 1080), layers)
+    ])
 
 
 def sample_nine_slice() -> None:
-    layers = [
+    write_psd("NineSlice", (1920, 1080), [
         LayerSpec("Panel#9slice(8,8,8,8)", (200, 200, 1720, 880), (60, 60, 80, 220)),
-    ]
-    build_flat_psd("NineSlice", 1920, 1080, layers)
-    write_expected_json("NineSlice", (1920, 1080), layers)
+    ])
 
 
 def sample_linked_psd() -> None:
-    """Parent PSD that references Avatar.psd via #linkedpsd naming convention."""
-    parent_layers = [
+    # Parent PSD: one layer whose name carries the #linkedpsd tag pointing at
+    # sibling Avatar.psd. The rectangle is the placeholder bounds for the
+    # UserWidget that will be generated at this position.
+    write_psd("LinkedPsd", (1920, 1080), [
         LayerSpec("Avatar#linkedpsd(Avatar.psd)", (832, 412, 1088, 668), (40, 40, 60, 1)),
-    ]
-    build_flat_psd("LinkedPsd", 1920, 1080, parent_layers)
-    write_expected_json("LinkedPsd", (1920, 1080), parent_layers)
-
-    child_layers = [
+    ])
+    # Child PSD: a tiny standalone PSD that #linkedpsd refers to.
+    write_psd("Avatar", (256, 256), [
         LayerSpec("Body", (0, 0, 256, 256), (200, 120, 60, 255)),
-    ]
-    build_flat_psd("Avatar", 256, 256, child_layers)
-    write_expected_json("Avatar", (256, 256), child_layers)
+    ])
 
 
 if __name__ == "__main__":

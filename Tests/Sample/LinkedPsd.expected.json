@@ -7,16 +7,17 @@
 	"layerCount": 1,
 	"layers": [
 		{
-			"name": "L1",
-			"kind": "Raster",
+			"name": "Avatar",
+			"kind": "LinkedPsd",
 			"bounds": [
-				0,
-				0,
-				1920,
-				1080
+				832,
+				412,
+				1088,
+				668
 			],
 			"visible": true,
-			"opacity": 1
+			"opacity": 1,
+			"linkedRel": "Avatar.psd"
 		}
 	]
 }

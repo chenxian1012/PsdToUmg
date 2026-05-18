@@ -4,28 +4,40 @@
 		1080
 	],
 	"colorDepth": 8,
-	"layerCount": 2,
+	"layerCount": 3,
 	"layers": [
 		{
-			"name": "L1",
+			"name": "HUD_Score",
 			"kind": "Raster",
 			"bounds": [
-				0,
-				0,
-				1920,
-				1080
+				50,
+				50,
+				300,
+				90
 			],
 			"visible": true,
 			"opacity": 1
 		},
 		{
-			"name": "L2",
+			"name": "HUD_Time",
 			"kind": "Raster",
 			"bounds": [
-				0,
-				0,
-				1920,
-				1080
+				50,
+				100,
+				300,
+				140
+			],
+			"visible": true,
+			"opacity": 1
+		},
+		{
+			"name": "Menu_Buttons_Play",
+			"kind": "Raster",
+			"bounds": [
+				800,
+				500,
+				1120,
+				600
 			],
 			"visible": true,
 			"opacity": 1

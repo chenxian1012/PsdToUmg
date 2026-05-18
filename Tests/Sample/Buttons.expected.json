@@ -4,28 +4,40 @@
 		1080
 	],
 	"colorDepth": 8,
-	"layerCount": 2,
+	"layerCount": 3,
 	"layers": [
 		{
-			"name": "L1",
+			"name": "PlayBtn#button_normal",
 			"kind": "Raster",
 			"bounds": [
-				0,
-				0,
-				1920,
-				1080
+				760,
+				460,
+				1160,
+				620
 			],
 			"visible": true,
 			"opacity": 1
 		},
 		{
-			"name": "L2",
+			"name": "PlayBtn#button_hovered",
 			"kind": "Raster",
 			"bounds": [
-				0,
-				0,
-				1920,
-				1080
+				760,
+				460,
+				1160,
+				620
+			],
+			"visible": true,
+			"opacity": 1
+		},
+		{
+			"name": "PlayBtn#button_pressed",
+			"kind": "Raster",
+			"bounds": [
+				760,
+				460,
+				1160,
+				620
 			],
 			"visible": true,
 			"opacity": 1

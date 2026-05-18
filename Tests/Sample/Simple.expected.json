@@ -4,10 +4,10 @@
 		1080
 	],
 	"colorDepth": 8,
-	"layerCount": 2,
+	"layerCount": 3,
 	"layers": [
 		{
-			"name": "L1",
+			"name": "Background",
 			"kind": "Raster",
 			"bounds": [
 				0,
@@ -19,11 +19,23 @@
 			"opacity": 1
 		},
 		{
-			"name": "L2",
+			"name": "Logo",
+			"kind": "Raster",
+			"bounds": [
+				50,
+				50,
+				562,
+				178
+			],
+			"visible": true,
+			"opacity": 1
+		},
+		{
+			"name": "Footer",
 			"kind": "Raster",
 			"bounds": [
 				0,
-				0,
+				1000,
 				1920,
 				1080
 			],

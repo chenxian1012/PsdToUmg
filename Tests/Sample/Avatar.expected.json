@@ -1,0 +1,20 @@
+{
+  "canvasSize": [
+    256,
+    256
+  ],
+  "colorDepth": 8,
+  "layerCount": 1,
+  "layers": [
+    {
+      "name": "Body",
+      "kind": "Raster",
+      "bounds": [
+        0,
+        0,
+        256,
+        256
+      ]
+    }
+  ]
+}

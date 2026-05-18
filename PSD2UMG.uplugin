@@ -21,6 +21,12 @@
       "Type": "Editor",
       "LoadingPhase": "Default",
       "PlatformAllowList": [ "Win64" ]
+    },
+    {
+      "Name": "PSD2UMGTests",
+      "Type": "DeveloperTool",
+      "LoadingPhase": "Default",
+      "PlatformAllowList": [ "Win64" ]
     }
   ],
   "Plugins": [

@@ -1,0 +1,40 @@
+{
+  "canvasSize": [
+    1920,
+    1080
+  ],
+  "colorDepth": 8,
+  "layerCount": 3,
+  "layers": [
+    {
+      "name": "PlayBtn#button_normal",
+      "kind": "Raster",
+      "bounds": [
+        760,
+        460,
+        1160,
+        620
+      ]
+    },
+    {
+      "name": "PlayBtn#button_hovered",
+      "kind": "Raster",
+      "bounds": [
+        760,
+        460,
+        1160,
+        620
+      ]
+    },
+    {
+      "name": "PlayBtn#button_pressed",
+      "kind": "Raster",
+      "bounds": [
+        760,
+        460,
+        1160,
+        620
+      ]
+    }
+  ]
+}

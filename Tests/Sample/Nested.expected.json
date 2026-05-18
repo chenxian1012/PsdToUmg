@@ -1,0 +1,40 @@
+{
+  "canvasSize": [
+    1920,
+    1080
+  ],
+  "colorDepth": 8,
+  "layerCount": 3,
+  "layers": [
+    {
+      "name": "HUD_Score",
+      "kind": "Raster",
+      "bounds": [
+        50,
+        50,
+        300,
+        90
+      ]
+    },
+    {
+      "name": "HUD_Time",
+      "kind": "Raster",
+      "bounds": [
+        50,
+        100,
+        300,
+        140
+      ]
+    },
+    {
+      "name": "Menu_Buttons_Play",
+      "kind": "Raster",
+      "bounds": [
+        800,
+        500,
+        1120,
+        600
+      ]
+    }
+  ]
+}

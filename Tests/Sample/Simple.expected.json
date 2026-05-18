@@ -1,0 +1,40 @@
+{
+  "canvasSize": [
+    1920,
+    1080
+  ],
+  "colorDepth": 8,
+  "layerCount": 3,
+  "layers": [
+    {
+      "name": "Background",
+      "kind": "Raster",
+      "bounds": [
+        0,
+        0,
+        1920,
+        1080
+      ]
+    },
+    {
+      "name": "Logo",
+      "kind": "Raster",
+      "bounds": [
+        50,
+        50,
+        562,
+        178
+      ]
+    },
+    {
+      "name": "Footer",
+      "kind": "Raster",
+      "bounds": [
+        0,
+        1000,
+        1920,
+        1080
+      ]
+    }
+  ]
+}

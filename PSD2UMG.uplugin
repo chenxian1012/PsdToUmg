@@ -11,6 +11,12 @@
   "Installed": false,
   "Modules": [
     {
+      "Name": "psd_sdk",
+      "Type": "Editor",
+      "LoadingPhase": "Default",
+      "PlatformAllowList": [ "Win64" ]
+    },
+    {
       "Name": "PSD2UMG",
       "Type": "Editor",
       "LoadingPhase": "Default",

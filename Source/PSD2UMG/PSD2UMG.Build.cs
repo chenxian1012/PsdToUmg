@@ -18,7 +18,7 @@ public class PSD2UMG : ModuleRules
             "UnrealEd", "UMGEditor", "Slate", "SlateCore", "RenderCore", "ImageWrapper",
             "AssetTools", "AssetRegistry", "AssetDefinition", "ToolMenus",
             "DeveloperSettings", "MessageLog", "Json", "JsonUtilities",
-            "KismetCompiler", "BlueprintGraph", "Projects"
+            "KismetCompiler", "BlueprintGraph", "Projects", "psd_sdk"
         });
 
         if (Target.Type == TargetType.Editor)

@@ -2,6 +2,7 @@
 #include "Builder/TextureBuilder.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -212,6 +213,37 @@ namespace PSD2UMG
             return SB;
         }
 
+        UWidget* BuildSubWidget(UWidgetBlueprint* Wbp, UPanelWidget* Parent, const FWidgetSpec& Spec)
+        {
+            if (Spec.SubWidgetAssetName.IsNone()) return nullptr;
+
+            // Resolve the child WBP's asset path: <PsdRootDir>/<SubName>/<SubName>.<SubName>
+            // where <PsdRootDir> is the parent of the main WBP's package path.
+            // Convention from spec §4: linked sub-WBPs live as siblings under
+            // /Game/UI/PsdImport/<SubName>/WBP_<SubName>.
+            const FString WbpPackageName = Wbp->GetOuter()->GetName();   // /Game/.../<PsdName>/WBP_<PsdName>
+            const FString PsdDir         = FPaths::GetPath(WbpPackageName); // /Game/.../<PsdName>
+            const FString ImportRoot     = FPaths::GetPath(PsdDir);        // /Game/...
+            const FString SubAssetName   = Spec.SubWidgetAssetName.ToString();           // WBP_Avatar
+            const FString SubBase        = SubAssetName.StartsWith(TEXT("WBP_"))
+                ? SubAssetName.RightChop(4)
+                : SubAssetName;                                                          // Avatar
+            const FString ChildObjPath   = ImportRoot / SubBase / (SubAssetName + TEXT(".") + SubAssetName);
+
+            UWidgetBlueprint* ChildBp = LoadObject<UWidgetBlueprint>(nullptr, *ChildObjPath);
+            if (!ChildBp || !ChildBp->GeneratedClass) return nullptr;
+            UClass* ChildClass = ChildBp->GeneratedClass;
+            if (!ChildClass->IsChildOf(UUserWidget::StaticClass())) return nullptr;
+
+            // Use UWidget as the template parameter so WidgetTree::ConstructWidget
+            // takes the NewObject<> branch instead of CreateWidget<>, which avoids
+            // pulling SCOPE_CYCLE_COUNTER (Stats system) into this TU.
+            UWidget* UW = Wbp->WidgetTree->ConstructWidget<UWidget>(ChildClass, Spec.WidgetName);
+            Parent->AddChild(UW);
+            ApplyCanvasSlot(UW, Spec);
+            return UW;
+        }
+
         UWidget* BuildSpec(UWidgetBlueprint* Wbp, UPanelWidget* Parent, const FWidgetSpec& Spec)
         {
             switch (Spec.Type)
@@ -224,8 +256,9 @@ namespace PSD2UMG
                 case EWidgetType::NamedSlot:   return BuildNamedSlot(Wbp, Parent, Spec);
                 case EWidgetType::SizeBox:     return BuildSizeBox(Wbp, Parent, Spec);
                 case EWidgetType::ScaleBox:    return BuildScaleBox(Wbp, Parent, Spec);
+                case EWidgetType::SubWidget:   return BuildSubWidget(Wbp, Parent, Spec);
                 case EWidgetType::Skip:        return nullptr;
-                default:                       return nullptr;  // SubWidget added in Task 14
+                default:                       return nullptr;
             }
         }
     }

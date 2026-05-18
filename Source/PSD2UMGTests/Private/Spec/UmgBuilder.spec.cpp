@@ -5,6 +5,7 @@
 // Workaround: don't bring PSD2UMG into the global namespace in this spec.
 #include "Misc/AutomationTest.h"
 #include "Builder/UmgBuilder.h"
+#include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -14,6 +15,7 @@
 #include "Components/ScaleBox.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "WidgetBlueprint.h"
 
 BEGIN_DEFINE_SPEC(FUmgBuilderSpec, "PSD2UMG.UmgBuilder",
@@ -164,6 +166,55 @@ void FUmgBuilderSpec::Define()
             PSD2UMG::FUmgBuildContext Ctx { TEXT("/Game/PSD2UMG_UmgBuilderSpec_SC"), TEXT("WBP_Spec_SC") };
             UWidgetBlueprint* Wbp = PSD2UMG::FUmgBuilder::Build(Ctx, Root);
             TestNotNull("sc", Wbp->WidgetTree->FindWidget<UScaleBox>(TEXT("Scale")));
+        });
+    });
+
+    Describe("smart-object subwidget (LinkedPsd)", [this]()
+    {
+        It("creates a UUserWidget referencing the child WBP", [this]()
+        {
+            // 1. Pre-create a child WBP at the conventional sibling path.
+            //    Spec.SubWidgetAssetName = "WBP_Avatar"  →  loaded from
+            //    /Game/PSD2UMG_UmgBuilderSpec_Sub/Avatar/WBP_Avatar.WBP_Avatar
+            PSD2UMG::FWidgetSpec ChildRoot;
+            ChildRoot.Type = PSD2UMG::EWidgetType::Canvas;
+            ChildRoot.WidgetName = TEXT("Root");
+            ChildRoot.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(256, 256));
+            PSD2UMG::FUmgBuildContext ChildCtx
+            {
+                TEXT("/Game/PSD2UMG_UmgBuilderSpec_Sub/Avatar"),
+                TEXT("WBP_Avatar")
+            };
+            UWidgetBlueprint* ChildWbp = PSD2UMG::FUmgBuilder::Build(ChildCtx, ChildRoot);
+            TestNotNull("child wbp", ChildWbp);
+            // For the child's GeneratedClass to exist, we need to compile it.
+            // FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified does NOT
+            // compile by itself, so explicitly request a recompile.
+            FKismetEditorUtilities::CompileBlueprint(ChildWbp);
+            TestNotNull("child generated class", ChildWbp->GeneratedClass.Get());
+
+            // 2. Build the parent that references it via SubWidgetAssetName.
+            PSD2UMG::FWidgetSpec Root;
+            Root.Type = PSD2UMG::EWidgetType::Canvas;
+            Root.WidgetName = TEXT("Root");
+            Root.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(1920, 1080));
+            PSD2UMG::FWidgetSpec Sub;
+            Sub.Type = PSD2UMG::EWidgetType::SubWidget;
+            Sub.WidgetName = TEXT("AvatarSlot");
+            Sub.SubWidgetAssetName = TEXT("WBP_Avatar");
+            Sub.Bounds = FBox2D(FVector2D(10, 10), FVector2D(266, 266));
+            Root.Children.Add(MoveTemp(Sub));
+
+            PSD2UMG::FUmgBuildContext ParentCtx
+            {
+                TEXT("/Game/PSD2UMG_UmgBuilderSpec_Sub/Parent"),
+                TEXT("WBP_Parent")
+            };
+            UWidgetBlueprint* Wbp = PSD2UMG::FUmgBuilder::Build(ParentCtx, Root);
+            TestNotNull("parent wbp", Wbp);
+
+            UUserWidget* W = Wbp->WidgetTree->FindWidget<UUserWidget>(TEXT("AvatarSlot"));
+            TestNotNull("subwidget present", W);
         });
     });
 }

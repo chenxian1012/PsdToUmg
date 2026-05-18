@@ -1,0 +1,62 @@
+Log started at 05/18/2026 11:53:45 (2026-05-18T03:53:45Z)
+Resolved project argument D:\Ai\Project\PSD2UMG_5.7\HostProject\HostProject.uproject to D:\Ai\Project\PSD2UMG_5.7\HostProject\HostProject.uproject
+No config file at C:\ProgramData\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+No config file at C:\Users\chenxian\AppData\Local\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+No config file at C:\Users\chenxian\Documents\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+Configuration will be read from:
+  C:\Users\chenxian\AppData\Roaming\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+Reading configuration file from cache (D:\Ai\Project\PSD2UMG_5.7\HostProject\Intermediate\Build\XmlConfigCache.bin): C:\Users\chenxian\AppData\Roaming\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+Reading configuration file from cache (D:\Ai\Project\PSD2UMG_5.7\HostProject\Intermediate\Build\XmlConfigCache.bin): D:\Ai\Project\PSD2UMG_5.7\HostProject\Saved\UnrealBuildTool\BuildConfiguration.xml
+Reading configuration file from cache (D:\Ai\Project\PSD2UMG_5.7\HostProject\Intermediate\Build\XmlConfigCache.bin): C:\Users\chenxian\AppData\Local\UnrealEngine\Intermediate\Build\UnrealBuildTool.Env.BuildConfiguration.xml
+Log file: D:\Ai\Project\PSD2UMG_5.7\BuildLog_Task6b.txt
+
+Setting temp directory to 'C:\Users\chenxian\AppData\Local\Temp\UnrealBuildTool\ded92a74'
+    Registering build platform: UnrealBuildTool.AndroidPlatformFactory
+    Registering build platform: UnrealBuildTool.IOSPlatformFactory
+    Registering build platform: UnrealBuildTool.LinuxPlatformFactory
+    Registering build platform: UnrealBuildTool.MacPlatformFactory
+    Registering build platform: UnrealBuildTool.TVOSPlatformFactory
+    Registering build platform: UnrealBuildTool.WindowsPlatformFactory
+Found Windows 10 SDK root at C:\Program Files (x86)\Windows Kits\10 (1)
+Found Windows 10 SDK root at C:\Program Files (x86)\Windows Kits\10 (2)
+Found Windows 10 SDK version 10.0.22621.0 at C:\Program Files (x86)\Windows Kits\10
+Found Universal CRT version 10.0.22621.0 at C:\Program Files (x86)\Windows Kits\10
+Found Windows 10 SDK version 10.0.26100.0 at C:\Program Files (x86)\Windows Kits\10
+Found Universal CRT version 10.0.26100.0 at C:\Program Files (x86)\Windows Kits\10
+Win64 Installed SDK(s): MinVersion_Sdk=10.0.19041.0, MaxVersion_Sdk=10.9.99999.0, CurrentVersion_Sdk=10.0.22621.0, Version_AutoSdk=10.0.22621.0, CurrentVersion_AutoSdk=
+        Registering build platform: Win64 - buildable: True
+    Registering build platform: UnrealBuildTool.VisionOSPlatformFactory
+Command line: D:\ue\UE_5.7\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll HostProjectEditor Win64 Development -Project=D:\Ai\Project\PSD2UMG_5.7\HostProject\HostProject.uproject -WaitMutex -log=D:\Ai\Project\PSD2UMG_5.7\BuildLog_Task6b.txt
+Using 'git status' to determine working set for adaptive non-unity build (D:\Ai\Project\PSD2UMG_5.7).
+Generated code is up to date.
+Checking for live coding mutex: Global\LiveCoding_D++ue+UE_5.7+Engine+Binaries+Win64+UnrealEditor.exe
+Deleting outdated item: D:\Ai\Project\PSD2UMG_5.7\HostProject\Plugins\PSD2UMG\Intermediate\Build\Win64\x64\UnrealEditor\Development\PSD2UMG\UnrealEditor-PSD2UMG.lib
+Deleting outdated item: D:\Ai\Project\PSD2UMG_5.7\HostProject\Plugins\PSD2UMG\Binaries\Win64\UnrealEditor-PSD2UMG.pdb
+Deleting outdated item: D:\Ai\Project\PSD2UMG_5.7\HostProject\Plugins\PSD2UMG\Intermediate\Build\Win64\x64\UnrealEditor\Development\PSD2UMGTests\UnrealEditor-PSD2UMGTests.lib
+Building HostProjectEditor...
+Using Clang 18.1.8 compiler (C:\Program Files\LLVM) with Visual Studio 2022 14.38.33145 runtime (C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Tools\MSVC\14.38.33130) and Windows 10.0.22621.0 SDK (C:\Program Files (x86)\Windows Kits\10).
+Warning: Visual Studio 2022 runtime is not a preferred version
+Determining max actions to execute in parallel (8 physical cores, 16 logical cores)
+  Executing up to 8 processes, one per physical core
+Using Unreal Build Accelerator local executor to run 7 action(s)
+  Storage capacity 40Gb
+  RootDir C:\ProgramData\Epic\UnrealBuildAccelerator
+---- Starting trace: 260518_115346 ----
+UbaSessionServer - Disable remote execution (remote sessions will finish current processes)
+Cache bucket 2611342960 used. Action: Compile [x64] PsdNamingParser.cpp ()
+Cache bucket 416513229 used. Action: Link [x64] UnrealEditor-PSD2UMG.lib ()
+All processes queued
+[1/7] Compile [x64] PsdNamingParser.cpp
+[2/7] Link [x64] UnrealEditor-PSD2UMG.lib
+[3/7] Link [x64] UnrealEditor-PSD2UMG.dll
+[4/7] Compile [x64] Module.PSD2UMGTests.cpp
+[5/7] Link [x64] UnrealEditor-PSD2UMGTests.lib
+[6/7] Link [x64] UnrealEditor-PSD2UMGTests.dll
+[7/7] WriteMetadata HostProjectEditor.target [NoUba]
+
+Trace written to file D:/Ai/Project/PSD2UMG_5.7/BuildLog_Task6b.uba with size 4.0kb
+Total time in Unreal Build Accelerator local executor: 4.65 seconds
+WriteFileIfChanged() wrote 0 changed files of 1 requested writes.
+
+Result: Succeeded
+Total execution time: 5.52 seconds

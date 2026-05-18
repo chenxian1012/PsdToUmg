@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "globals": { "designDpi": 1920, "useCommonUI": true },
+  "layers": {
+    "PlayBtn": { "commonButtonStyle": "/Game/UI/Styles/BSt_Primary.BSt_Primary" }
+  }
+}

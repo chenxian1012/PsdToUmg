@@ -1,56 +1,55 @@
-# PSD Layer Naming + Sidecar Schema
+# PSD 图层命名 + Sidecar 协议
 
-PSD2UMG drives widget generation from two sources:
+PsdToUmg 从两个地方读控件生成指令:
 
-1. **Layer name tags** (the primary mechanism; designers control this in Photoshop)
-2. **Sidecar `<Foo>.psd.json`** (the optional mechanism; controls style asset references)
+1. **图层名 tag**(主要机制,设计师在 Photoshop 里直接控制)
+2. **Sidecar `<Foo>.psd.json`**(可选,主要用来引用样式资产)
 
-## Layer name format
+## 图层名格式
 
 ```
 <Name>#<tag1>[(args)]#<tag2>[(args)]...
 ```
 
-`<Name>` becomes the widget's `FName` in the generated WidgetBlueprint. Tags
-following `#` add type, modifiers, or behavior. Multiple tags compose.
+`<Name>` 会成为生成的 WidgetBlueprint 里 widget 的 `FName`。`#` 后面的 tag
+追加类型、修饰或行为。多个 tag 可以叠加。
 
-### Tag dictionary (v1)
+### Tag 字典(v1)
 
-| Tag | Output widget | Args |
+| Tag | 输出控件 | 参数 |
 |---|---|---|
-| `#image` (default) | `UImage` | — |
-| `#text` | `UTextBlock` (or `UCommonTextBlock` with CommonUI) | — |
-| `#button` | `UButton` (or `UCommonButtonBase`) | — |
-| `#button_normal` / `#button_hovered` / `#button_pressed` / `#button_disabled` | merges into one `UButton` with per-state brushes | — |
-| `#progress(bg\|fill\|marquee)` | `UProgressBar` part | — |
-| `#9slice(L,R,T,B)` | nine-slice border on `UImage` brush; values are pixel margins | `8,8,8,8` |
-| `#sizebox(W=,H=)` | `USizeBox` with width/height override | `W=200,H=80` |
+| `#image`(默认) | `UImage` | — |
+| `#text` | `UTextBlock`(开 CommonUI 时为 `UCommonTextBlock`) | — |
+| `#button` | `UButton`(或 `UCommonButtonBase`) | — |
+| `#button_normal` / `#button_hovered` / `#button_pressed` / `#button_disabled` | 同名图层合并成一个 `UButton`,各状态填对应 brush | — |
+| `#progress(bg\|fill\|marquee)` | `UProgressBar` 的对应部位 | — |
+| `#9slice(L,R,T,B)` | `UImage` 上九宫格 margin,4 个像素值 | `8,8,8,8` |
+| `#sizebox(W=,H=)` | `USizeBox`,带宽高 override | `W=200,H=80` |
 | `#scalebox` | `UScaleBox` | — |
-| `#slot` | `UNamedSlot` (fill at runtime) | — |
-| `#anchor(...)` | overrides default anchor | one of `TL / T / TR / L / C / R / BL / B / BR / Stretch` |
-| `#linkedpsd(RelPath)` | sibling `.psd` becomes a child `WBP_<base>`; embedded as a `UUserWidget` | `Avatar.psd` |
-| `#vanilla` | forces plain UMG (no CommonUI) | — |
-| `#skip` | excluded from output | — |
+| `#slot` | `UNamedSlot`(运行时再填充) | — |
+| `#anchor(...)` | 覆盖默认锚点预设 | `TL / T / TR / L / C / R / BL / B / BR / Stretch` 之一 |
+| `#linkedpsd(RelPath)` | 引用同目录的兄弟 `.psd`,递归生成 `WBP_<base>`,在此处放一个 `UUserWidget` | `Avatar.psd` |
+| `#vanilla` | 强制走原生 UMG(不走 CommonUI) | — |
+| `#skip` | 该图层不导入 | — |
 
-Unknown tags are recorded as MessageLog warnings and treated as no-ops.
+不认识的 tag 会进 MessageLog 警告,按 no-op 处理。
 
-### Default anchor preset
+### 默认锚点策略
 
-When `#anchor(...)` is not specified, PSD2UMG derives an anchor from the layer's
-center position within its parent (the PSD canvas):
+如果没有写 `#anchor(...)`,PsdToUmg 会按图层中心点在父容器(PSD 画布)中的相对位置推导:
 
-| X / Y in parent | Result |
+| 在父容器里 X / Y 比例 | 结果 |
 |---|---|
-| < 25% | start-aligned anchor (TL/T/L/etc.) |
-| 25–75% | center-aligned |
-| > 75% | end-aligned |
+| < 25% | 起始锚(TL / T / L 等) |
+| 25–75% | 居中锚 |
+| > 75% | 末端锚 |
 
-This is a 9-grid approximation. Override with `#anchor(...)` when the auto-detection is wrong.
+九宫格近似。自动推导不对的话用 `#anchor(...)` 显式覆盖。
 
 ## Sidecar `<Foo>.psd.json`
 
-If a JSON file named `<Foo>.psd.json` sits next to `<Foo>.psd`, PSD2UMG loads it
-and lets values inside override defaults derived from layer names.
+如果有一个跟 `<Foo>.psd` 同名同目录的 JSON 文件 `<Foo>.psd.json`,PsdToUmg 会
+加载它,里面的字段优先级高于图层名 tag。
 
 ```json
 {
@@ -71,21 +70,20 @@ and lets values inside override defaults derived from layer names.
 }
 ```
 
-### Override priority
+### 优先级
 
-`JSON > naming tag args > UDeveloperSettings defaults`
+`JSON > 命名 tag args > UDeveloperSettings 默认值`
 
-Only assets referenced via `commonButtonStyle` / `textStyle` / `fontFace` need
-to exist in the project — if missing, the import logs a warning and continues
-with default styling.
+只有 `commonButtonStyle` / `textStyle` / `fontFace` 引用的资产**需要**在工程里
+真实存在。资产缺失时导入会给一条 MessageLog 警告,然后用默认样式继续。
 
-## Examples
+## 示例
 
-| PSD layer name | Resulting widget |
+| PSD 图层名 | 生成的控件 |
 |---|---|
-| `Background` | `UImage` named `Background`, anchor auto-derived |
-| `PlayBtn#button_normal` + `PlayBtn#button_hovered` + `PlayBtn#button_pressed` | One `UButton` named `PlayBtn`, three brushes set |
-| `Panel#9slice(8,8,8,8)` | `UImage` with `Margin{L:8,R:8,T:8,B:8}` and `DrawAs=Box` |
-| `Avatar#linkedpsd(Avatar.psd)` | `UUserWidget` referencing `WBP_Avatar` (also imported recursively) |
-| `Title#text#vanilla` | `UTextBlock` (not the CommonUI version) |
-| `Header#slot` | `UNamedSlot` for runtime fill |
+| `Background` | 名为 `Background` 的 `UImage`,锚点自动推导 |
+| `PlayBtn#button_normal` + `PlayBtn#button_hovered` + `PlayBtn#button_pressed` | 一个名为 `PlayBtn` 的 `UButton`,3 张 brush 全填好 |
+| `Panel#9slice(8,8,8,8)` | `UImage`,margin `{L:8,R:8,T:8,B:8}`,`DrawAs=Box` |
+| `Avatar#linkedpsd(Avatar.psd)` | 引用 `WBP_Avatar` 的 `UUserWidget`(同时递归导入 Avatar.psd) |
+| `Title#text#vanilla` | `UTextBlock`(不走 CommonUI) |
+| `Header#slot` | `UNamedSlot`,运行时填 |

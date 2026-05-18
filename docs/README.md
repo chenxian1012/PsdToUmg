@@ -1,46 +1,45 @@
-# PSD2UMG
+# PsdToUmg
 
-Adobe Photoshop `.psd` → Unreal Motion Graphics `UWidgetBlueprint` importer for **Unreal Engine 5.7**.
+Adobe Photoshop `.psd` → Unreal Motion Graphics `UWidgetBlueprint` 导入器,**Unreal Engine 5.7** 适用。
 
-## What it does
+## 它做什么
 
-Drop a `.psd` file into the Content Browser. PSD2UMG:
+把 `.psd` 文件拖进 Content Browser,PsdToUmg 会:
 
-- Parses every layer via MolecularMatters/psd_sdk (vendored, pure C++, zero external deps)
-- Reads optional `<Foo>.psd.json` sidecar for style overrides
-- Generates one `UTexture2D` per raster layer (TC_EditorIcon / sRGB / NoMipmaps)
-- Builds a `UWidgetBlueprint` with `UCanvasPanel` / `UImage` / `UButton` / `UProgressBar` /
-  `UTextBlock` / `USizeBox` / `UScaleBox` / `UNamedSlot` / `UUserWidget` nodes based on
-  layer-name conventions (see `schema.md`)
-- Re-import is supported via the standard Reimport menu
+- 用 MolecularMatters/psd_sdk 解析每一个图层(已 vendor 进来,纯 C++,零外部依赖)
+- 读取可选的 `<Foo>.psd.json` 旁路文件做样式覆盖
+- 每个 raster 图层生成一张 `UTexture2D`(TC_EditorIcon / sRGB / 不带 mipmap)
+- 按命名约定建出 `UWidgetBlueprint`,节点类型涵盖 `UCanvasPanel` / `UImage` /
+  `UButton` / `UProgressBar` / `UTextBlock` / `USizeBox` / `UScaleBox` /
+  `UNamedSlot` / `UUserWidget`(详见 `schema.md`)
+- 支持通过标准 Reimport 菜单重导
 
-See `docs/schema.md` for the layer-name protocol and `docs/samples.md` for the test fixtures.
+`docs/schema.md` 是图层命名 + sidecar 协议文档,`docs/samples.md` 是测试样本说明。
 
-## Quick start
+## 快速上手
 
-1. Enable the plugin in your project's `.uproject`.
-2. Right-click a `.psd` in the Content Browser → Import.
-3. The output lands at `/Game/UI/PsdImport/<PsdName>/`:
-   - `WBP_<PsdName>.uasset` — the WidgetBlueprint
-   - `T_<LayerName>.uasset` — per-layer texture
-   - `PsdCache_<PsdName>.uasset` — Reimport handle
+1. 在你项目的 `.uproject` 里启用插件。
+2. 在 Content Browser 里右键 `.psd` → Import。
+3. 输出落在 `/Game/UI/PsdImport/<PsdName>/` 下:
+   - `WBP_<PsdName>.uasset` — WidgetBlueprint
+   - `T_<LayerName>.uasset` — 单层贴图
+   - `PsdCache_<PsdName>.uasset` — Reimport 用的句柄资产
 
-Use **Project Settings → Plugins → PSD2UMG** to change the default output path
-or disable CommonUI integration.
+通过 **Project Settings → Plugins → PSD2UMG** 改默认输出路径或关闭 CommonUI 集成。
 
-## Repository layout
+## 仓库结构
 
 ```
-PSD2UMG.uplugin                            Plugin manifest (UE 5.7, Win64)
-Source/PSD2UMG/                            Editor module (Importer/Schema/Builder/Settings/Asset)
-Source/psd_sdk/                            Vendored MolecularMatters/psd_sdk snapshot
-Source/PSD2UMGTests/                       Automation Spec tests (DeveloperTool)
-Tests/Sample/                              Reproducible test fixtures (generate_samples.py)
-HostProject/                               UE project used by the test runner
-docs/                                      This documentation
+PSD2UMG.uplugin                     插件清单 (UE 5.7, Win64)
+Source/PSD2UMG/                     编辑器模块(Importer / Schema / Builder / Settings / Asset)
+Source/psd_sdk/                     vendor 进来的 MolecularMatters/psd_sdk 快照
+Source/PSD2UMGTests/                Automation Spec 测试(DeveloperTool)
+Tests/Sample/                       可重新生成的测试样本(generate_samples.py)
+HostProject/                        测试时用的宿主 UE 工程
+docs/                               本文档
 ```
 
-## Building from source
+## 从源码构建
 
 ```bash
 "D:\ue\UE_5.7\Engine\Build\BatchFiles\Build.bat" \
@@ -49,11 +48,10 @@ docs/                                      This documentation
   -WaitMutex
 ```
 
-The plugin compiles two UE modules into the host project: `psd_sdk` (the vendored
-parser) and `PSD2UMG` (the editor integration). A third module `PSD2UMGTests`
-ships the Automation Spec suite.
+插件会编译两个 UE 模块进宿主工程:`psd_sdk`(vendor 的解析器)+ `PSD2UMG`
+(编辑器集成层)。还有第三个 `PSD2UMGTests` 跑 Automation Spec 套件。
 
-## Running the test suite
+## 跑测试套件
 
 ```bash
 "D:\ue\UE_5.7\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" \
@@ -62,36 +60,33 @@ ships the Automation Spec suite.
   -unattended -nopause -NullRHI -log
 ```
 
-Expected: 36/36 specs pass, exit code 0.
+预期:36 / 36 通过,exit code 0。
 
-## Repo bootstrap (clone-time setup)
+## 仓库 bootstrap(clone 后的步骤)
 
-The host project's `HostProject/Plugins/PSD2UMG` is an NTFS **junction** pointing to the
-repo root — not a tracked file. After cloning the repo, recreate it:
+`HostProject/Plugins/PSD2UMG` 是一个 NTFS **junction**,指向仓库根 ——
+没有纳入 git。clone 仓库后手动重建一次:
 
 ```cmd
 mklink /J "HostProject\Plugins\PSD2UMG" ".\"
 ```
 
-(Requires Developer Mode on Windows, OR an admin prompt. `/J` is a junction, which
-doesn't need elevation.)
+(Windows 上需要开启开发者模式,或者用管理员命令行;`/J` 是 junction,不需要提权。)
 
-## Known limitations (v1)
+## 已知限制(v1)
 
-- **Smart Object pixel extraction** is not supported by psd_sdk. Use the
-  `#linkedpsd(SubFile.psd)` layer-name convention to embed sibling PSDs as
-  child WBPs instead. See `schema.md`.
-- **PSB (>2GB) files** are not supported. PSD Reader rejects them with a
-  MessageLog error.
-- **16/32-bit PSDs** are read but downsampled to 8-bit in the texture builder.
-  v2 will preserve precision with `TSF_RGBA16F`.
-- **Style assets** (`CommonTextStyle` / `CommonButtonStyle`) are abstract in
-  CommonUI 5.7; the v1 stub builder returns empty soft paths. v2 will accept
-  concrete subclass overrides via project settings.
-- **Reimport idempotence** asserts widget COUNT is stable, not in-place merge.
-  v1 clears and rebuilds the WBP; user-edited Slot positions are not preserved.
+- **不支持 Smart Object 像素提取**(psd_sdk 限制)。改用
+  `#linkedpsd(SubFile.psd)` 图层命名约定把兄弟 PSD 嵌入为子 WBP,详见 `schema.md`。
+- **不支持 PSB(> 2GB)文件**。PsdReader 会通过 MessageLog 报错。
+- **16 / 32 bit PSD** 可读,但 texture builder 阶段会降到 8 bit,v2 会换
+  `TSF_RGBA16F` 保精度。
+- **样式资产**(`CommonTextStyle` / `CommonButtonStyle`)在 CommonUI 5.7 是
+  abstract 类,v1 stub builder 返回空 soft path。v2 会让你通过项目设置
+  指定具体子类。
+- **Reimport 幂等性**只保证 widget 数量稳定,**不**做原地 merge。v1 是
+  清空 + 重建,用户手工改的 Slot 位置不会保留。
 
-## License
+## 许可证
 
-See `Source/psd_sdk/LICENSE.psd_sdk` for the vendored parser (BSD 2-Clause,
-© Molecular Matters). The plugin glue code license is per-repo (specify in your project).
+vendor 的解析器见 `Source/psd_sdk/LICENSE.psd_sdk`(BSD 2-Clause © Molecular Matters)。
+插件本体的许可证在仓库根的 `LICENSE` 文件里。

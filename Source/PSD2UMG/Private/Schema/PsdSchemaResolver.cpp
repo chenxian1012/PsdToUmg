@@ -7,6 +7,21 @@ namespace PSD2UMG
 {
     namespace
     {
+        /** Strip characters disallowed in UE long package names (#, spaces, etc).
+         * The PSD2UMGFactory uses the same sanitization when emitting textures, so
+         * the TextureAssetName here must match the on-disk asset. */
+        FString SanitizeAssetSegment(const FString& In)
+        {
+            FString Out;
+            Out.Reserve(In.Len());
+            for (TCHAR C : In)
+            {
+                const bool bOk = FChar::IsAlnum(C) || C == TEXT('_') || C == TEXT('-');
+                Out.AppendChar(bOk ? C : TEXT('_'));
+            }
+            return Out;
+        }
+
         EAnchorPreset DefaultAnchorFromCenter(const FBox2D& Layer, const FBox2D& Parent)
         {
             const float Cx = (Layer.Min.X + Layer.Max.X) * 0.5f;
@@ -59,7 +74,7 @@ namespace PSD2UMG
                           && Ctx.ProjectDefaultUseCommonUI;
             S.Brush.bNineSlice = P.bNineSlice;
             S.Brush.Margin = P.NineSliceMargin;
-            S.Brush.TextureAssetName = FName(*(FString(TEXT("T_")) + Layer.Name));
+            S.Brush.TextureAssetName = FName(*(FString(TEXT("T_")) + SanitizeAssetSegment(Layer.Name)));
             return S;
         }
     }
@@ -121,7 +136,7 @@ namespace PSD2UMG
                     ConsumedAsButtonState.Add(E.LayerIndex);
                     const FPsdLayer& StateLayer = Doc.Layers[E.LayerIndex];
                     FSlateBrushSpec StateBrush;
-                    StateBrush.TextureAssetName = FName(*(FString(TEXT("T_")) + StateLayer.Name));
+                    StateBrush.TextureAssetName = FName(*(FString(TEXT("T_")) + SanitizeAssetSegment(StateLayer.Name)));
                     BtnSpec.ButtonStates.Add(E.State, StateBrush);
                 }
                 ApplySidecarOverrides(Ctx, P.BaseName, BtnSpec);

@@ -3,6 +3,7 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Image.h"
@@ -116,14 +117,47 @@ namespace PSD2UMG
             return Img;
         }
 
+        UWidget* BuildButton(UWidgetBlueprint* Wbp, UPanelWidget* Parent, const FWidgetSpec& Spec)
+        {
+            UButton* Btn = Wbp->WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), Spec.WidgetName);
+            Parent->AddChild(Btn);
+            ApplyCanvasSlot(Btn, Spec);
+
+            FButtonStyle Style = Btn->GetStyle();
+            auto Apply = [&](EButtonState State, FSlateBrush& OutBrush)
+            {
+                const FSlateBrushSpec* B = Spec.ButtonStates.Find(State);
+                if (!B || B->TextureAssetName.IsNone()) return;
+                UTexture2D* Tex = LoadTextureForSpec(Wbp, B->TextureAssetName);
+                if (!Tex) return;
+                OutBrush.SetResourceObject(Tex);
+                OutBrush.ImageSize = Spec.Bounds.GetSize();
+                OutBrush.Margin    = ToFMargin(B->Margin);
+                OutBrush.DrawAs    = B->bNineSlice ? ESlateBrushDrawType::Box
+                                                    : ESlateBrushDrawType::Image;
+            };
+            Apply(EButtonState::Normal,   Style.Normal);
+            Apply(EButtonState::Hovered,  Style.Hovered);
+            Apply(EButtonState::Pressed,  Style.Pressed);
+            Apply(EButtonState::Disabled, Style.Disabled);
+
+            // Fall back to Normal where Hovered/Pressed were not authored.
+            if (!Style.Hovered.GetResourceObject()) Style.Hovered = Style.Normal;
+            if (!Style.Pressed.GetResourceObject()) Style.Pressed = Style.Normal;
+
+            Btn->SetStyle(Style);
+            return Btn;
+        }
+
         UWidget* BuildSpec(UWidgetBlueprint* Wbp, UPanelWidget* Parent, const FWidgetSpec& Spec)
         {
             switch (Spec.Type)
             {
                 case EWidgetType::Canvas: return BuildCanvas(Wbp, Parent, Spec);
                 case EWidgetType::Image:  return BuildImage(Wbp, Parent, Spec);
+                case EWidgetType::Button: return BuildButton(Wbp, Parent, Spec);
                 case EWidgetType::Skip:   return nullptr;
-                default:                  return nullptr;  // other types added in tasks 12-14
+                default:                  return nullptr;  // other types added in tasks 13-14
             }
         }
     }

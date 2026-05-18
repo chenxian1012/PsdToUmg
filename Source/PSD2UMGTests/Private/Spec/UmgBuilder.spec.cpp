@@ -6,6 +6,7 @@
 #include "Misc/AutomationTest.h"
 #include "Builder/UmgBuilder.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/Image.h"
 #include "WidgetBlueprint.h"
@@ -44,6 +45,37 @@ void FUmgBuilderSpec::Define()
 
             UImage* ImgWidget = Wbp->WidgetTree->FindWidget<UImage>(TEXT("Logo"));
             TestNotNull("image widget", ImgWidget);
+        });
+    });
+
+    Describe("button with three states", [this]()
+    {
+        It("creates one UButton and accepts Normal/Hovered/Pressed brush specs without crashing", [this]()
+        {
+            PSD2UMG::FWidgetSpec Root;
+            Root.Type = PSD2UMG::EWidgetType::Canvas;
+            Root.WidgetName = TEXT("Root");
+            Root.Bounds = FBox2D(FVector2D::ZeroVector, FVector2D(1920, 1080));
+
+            PSD2UMG::FWidgetSpec Btn;
+            Btn.Type = PSD2UMG::EWidgetType::Button;
+            Btn.WidgetName = TEXT("Play");
+            Btn.Bounds = FBox2D(FVector2D(100, 100), FVector2D(300, 160));
+            Btn.Anchor = PSD2UMG::EAnchorPreset::TL;
+            Btn.ButtonStates.Add(PSD2UMG::EButtonState::Normal,  PSD2UMG::FSlateBrushSpec{});
+            Btn.ButtonStates.Add(PSD2UMG::EButtonState::Hovered, PSD2UMG::FSlateBrushSpec{});
+            Btn.ButtonStates.Add(PSD2UMG::EButtonState::Pressed, PSD2UMG::FSlateBrushSpec{});
+            Root.Children.Add(MoveTemp(Btn));
+
+            PSD2UMG::FUmgBuildContext Ctx;
+            Ctx.PackagePath = TEXT("/Game/PSD2UMG_UmgBuilderSpec_Button");
+            Ctx.WbpName     = TEXT("WBP_Spec_Button");
+
+            UWidgetBlueprint* Wbp = PSD2UMG::FUmgBuilder::Build(Ctx, Root);
+            TestNotNull("wbp", Wbp);
+
+            UButton* B = Wbp->WidgetTree->FindWidget<UButton>(TEXT("Play"));
+            TestNotNull("button widget", B);
         });
     });
 }

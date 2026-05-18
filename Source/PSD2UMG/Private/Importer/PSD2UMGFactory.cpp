@@ -147,6 +147,7 @@ UPSD2UMGCache* UPSD2UMGFactory::ImportFromFile(const FString& PsdAbsolutePath,
     {
         Log.Error(FText::Format(LOCTEXT("BadFile", "Cannot read {0}"),
                                  FText::FromString(PsdAbsolutePath)));
+        Log.Open(EMessageSeverity::Error);
         return nullptr;
     }
 
@@ -173,6 +174,13 @@ UPSD2UMGCache* UPSD2UMGFactory::ImportFromFile(const FString& PsdAbsolutePath,
     }
     FAssetRegistryModule::AssetCreated(Cache);
     Cache->MarkPackageDirty();
+
+    // If any warnings/errors accumulated during build, surface them to the user.
+    if (Log.NumMessages(EMessageSeverity::Warning) > 0 ||
+        Log.NumMessages(EMessageSeverity::Error)   > 0)
+    {
+        Log.Open(EMessageSeverity::Warning, /*bOpen=*/false);
+    }
     return Cache;
 }
 

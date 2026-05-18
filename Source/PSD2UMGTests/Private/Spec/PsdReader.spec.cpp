@@ -19,10 +19,17 @@
 #define PSD2UMG_REGENERATE_SNAPSHOTS 0
 #endif
 
-using namespace PSD2UMG;
+// NOTE: PSD2UMG::EBlendMode collides with the engine's ::EBlendMode (defined in
+// EngineTypes.h, pulled in by UMG headers in other specs in this unity TU).
+// We pull in only the specific names we need rather than `using namespace`.
 
 namespace
 {
+    using PSD2UMG::FPsdDocument;
+    using PSD2UMG::FPsdLayer;
+    using PSD2UMG::ELayerKind;
+    using PSD2UMG::FPsdReader;
+
     TSharedRef<FJsonObject> ToJson(const FPsdDocument& Doc)
     {
         TSharedRef<FJsonObject> Root = MakeShared<FJsonObject>();
@@ -81,6 +88,7 @@ END_DEFINE_SPEC(FPsdReaderSpec)
 
 void FPsdReaderSpec::Define()
 {
+    using namespace PSD2UMG;
     for (const TCHAR* Sample : { TEXT("Simple"), TEXT("Nested"), TEXT("Buttons"),
                                   TEXT("NineSlice"), TEXT("LinkedPsd"), TEXT("Avatar") })
     {

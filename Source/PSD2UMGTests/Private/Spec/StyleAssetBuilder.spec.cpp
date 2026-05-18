@@ -1,7 +1,7 @@
 #include "Misc/AutomationTest.h"
 #include "Builder/StyleAssetBuilder.h"
 
-using namespace PSD2UMG;
+// `using namespace PSD2UMG;` is scoped inside Define() — see PsdNamingParser.spec.cpp.
 
 BEGIN_DEFINE_SPEC(FStyleAssetBuilderSpec, "PSD2UMG.StyleAssetBuilder",
     EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -9,6 +9,7 @@ END_DEFINE_SPEC(FStyleAssetBuilderSpec)
 
 void FStyleAssetBuilderSpec::Define()
 {
+    using namespace PSD2UMG;
     Describe("text style creation", [this]()
     {
         It("creates a UCommonTextStyle asset (or returns null path if CommonUI absent)", [this]()

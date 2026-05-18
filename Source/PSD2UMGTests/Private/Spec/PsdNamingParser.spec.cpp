@@ -1,7 +1,9 @@
 #include "Misc/AutomationTest.h"
 #include "Schema/PsdNamingParser.h"
 
-using namespace PSD2UMG;
+// `using namespace PSD2UMG;` is scoped inside Define() — at file scope it
+// would leak into other specs in the unity TU where it can clash with
+// engine-side names like EBlendMode.
 
 BEGIN_DEFINE_SPEC(FPsdNamingParserSpec, "PSD2UMG.NamingParser",
     EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -9,6 +11,7 @@ END_DEFINE_SPEC(FPsdNamingParserSpec)
 
 void FPsdNamingParserSpec::Define()
 {
+    using namespace PSD2UMG;
     Describe("plain name", [this]()
     {
         It("yields Image type and original name", [this]()

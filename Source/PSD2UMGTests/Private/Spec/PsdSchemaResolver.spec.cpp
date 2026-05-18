@@ -6,10 +6,15 @@
 
 #include "Misc/FileHelper.h"
 
-using namespace PSD2UMG;
+// NOTE: PSD2UMG::EBlendMode collides with the engine's ::EBlendMode (pulled
+// in by UMG headers used in other specs in this unity TU). Use targeted
+// using-declarations rather than `using namespace PSD2UMG;`.
 
 namespace
 {
+    using PSD2UMG::FPsdDocument;
+    using PSD2UMG::FPsdReader;
+
     bool ParseSample(const FString& Name, FPsdDocument& OutDoc)
     {
         TArray<uint8> Bytes;
@@ -26,6 +31,7 @@ END_DEFINE_SPEC(FPsdSchemaResolverSpec)
 
 void FPsdSchemaResolverSpec::Define()
 {
+    using namespace PSD2UMG;
     Describe("Buttons.psd", [this]()
     {
         It("merges 3 button-state layers into one Button widget", [this]()

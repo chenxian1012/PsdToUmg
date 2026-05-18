@@ -2,7 +2,7 @@
 #include "TestUtils.h"
 #include "Schema/PsdSidecarLoader.h"
 
-using namespace PSD2UMG;
+// `using namespace PSD2UMG;` is scoped inside Define() — see PsdNamingParser.spec.cpp.
 
 BEGIN_DEFINE_SPEC(FPsdSidecarLoaderSpec, "PSD2UMG.SidecarLoader",
     EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -10,6 +10,7 @@ END_DEFINE_SPEC(FPsdSidecarLoaderSpec)
 
 void FPsdSidecarLoaderSpec::Define()
 {
+    using namespace PSD2UMG;
     Describe("Buttons.psd.json (exists)", [this]()
     {
         It("loads globals and per-layer overrides", [this]()

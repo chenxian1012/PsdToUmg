@@ -2,7 +2,7 @@
 #include "Builder/TextureBuilder.h"
 #include "Engine/Texture2D.h"
 
-using namespace PSD2UMG;
+// `using namespace PSD2UMG;` is scoped inside Define() — see PsdNamingParser.spec.cpp.
 
 BEGIN_DEFINE_SPEC(FTextureBuilderSpec, "PSD2UMG.TextureBuilder",
     EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -10,6 +10,7 @@ END_DEFINE_SPEC(FTextureBuilderSpec)
 
 void FTextureBuilderSpec::Define()
 {
+    using namespace PSD2UMG;
     Describe("4x4 red square", [this]()
     {
         It("creates UTexture2D with TC_UI / sRGB / 4x4 BGRA8 source", [this]()

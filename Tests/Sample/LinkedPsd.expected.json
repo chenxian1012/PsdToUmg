@@ -1,20 +1,22 @@
 {
-  "canvasSize": [
-    1920,
-    1080
-  ],
-  "colorDepth": 8,
-  "layerCount": 1,
-  "layers": [
-    {
-      "name": "Avatar#linkedpsd(Avatar.psd)",
-      "kind": "Raster",
-      "bounds": [
-        832,
-        412,
-        1088,
-        668
-      ]
-    }
-  ]
+	"canvasSize": [
+		1920,
+		1080
+	],
+	"colorDepth": 8,
+	"layerCount": 1,
+	"layers": [
+		{
+			"name": "L1",
+			"kind": "Raster",
+			"bounds": [
+				0,
+				0,
+				1920,
+				1080
+			],
+			"visible": true,
+			"opacity": 1
+		}
+	]
 }

@@ -1,20 +1,22 @@
 {
-  "canvasSize": [
-    1920,
-    1080
-  ],
-  "colorDepth": 8,
-  "layerCount": 1,
-  "layers": [
-    {
-      "name": "Panel#9slice(8,8,8,8)",
-      "kind": "Raster",
-      "bounds": [
-        200,
-        200,
-        1720,
-        880
-      ]
-    }
-  ]
+	"canvasSize": [
+		1920,
+		1080
+	],
+	"colorDepth": 8,
+	"layerCount": 1,
+	"layers": [
+		{
+			"name": "L1",
+			"kind": "Raster",
+			"bounds": [
+				0,
+				0,
+				1920,
+				1080
+			],
+			"visible": true,
+			"opacity": 1
+		}
+	]
 }

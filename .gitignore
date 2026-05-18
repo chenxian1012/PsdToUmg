@@ -10,4 +10,13 @@ HostProject/DerivedDataCache/
 HostProject/Saved/
 # Plugin junction loops back to repo root; do not let git recurse into it
 HostProject/Plugins/PSD2UMG/
+# Legacy backup directory (recreated locally if needed)
 Source.legacy.bak/
+
+# UnrealBuildTool build logs (regenerated on every Build.bat run)
+BuildLog*.txt
+BuildLog*.json
+BuildLog*.uba
+
+# UE editor auto-writes this on startup; keep it out of version control
+HostProject/Config/DefaultInput.ini
